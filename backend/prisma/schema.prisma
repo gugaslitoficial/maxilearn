@@ -1,0 +1,175 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  PROFESSOR
+  STUDENT
+}
+
+enum CourseLevel {
+  BASIC
+  INTERMEDIATE
+  ADVANCED
+}
+
+enum CourseStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum EnrollmentStatus {
+  PENDING
+  ACTIVE
+  REVOKED
+}
+
+// ─── Models ──────────────────────────────────────────────────────────────────
+
+model Company {
+  id                 String   @id @default(cuid())
+  name               String
+  cnpj               String?
+  segment            String?
+  contactEmail       String?
+  phone              String?
+  site               String?
+  platformName       String   @default("MaxiLearn")
+  logoUrl            String?
+  primaryColor       String   @default("#CC1F1F")
+  secondaryColor     String   @default("#2A6FDB")
+  faviconUrl         String?
+  loginBackgroundUrl String?
+  notifNewUser       Boolean  @default(true)
+  notifCourseDone    Boolean  @default(true)
+  notifInactiveAlert Boolean  @default(false)
+  secTwoFactor       Boolean  @default(false)
+  secStrongPassword  Boolean  @default(true)
+  secSessionHours    Int      @default(8)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  users   User[]
+  courses Course[]
+}
+
+model User {
+  id           String    @id @default(cuid())
+  name         String
+  email        String    @unique
+  passwordHash String
+  role         Role
+  companyId    String
+  avatarUrl    String?
+  jobTitle     String?
+  bio          String?
+  isActive     Boolean   @default(true)
+  lastAccessAt DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  company     Company          @relation(fields: [companyId], references: [id])
+  courses     Course[]         @relation("TeacherCourses")
+  enrollments Enrollment[]
+  progress    LessonProgress[]
+
+  @@index([companyId])
+}
+
+model Course {
+  id               String       @id @default(cuid())
+  title            String
+  description      String?
+  category         String?
+  level            CourseLevel  @default(BASIC)
+  thumbnailUrl     String?
+  status           CourseStatus @default(DRAFT)
+  companyId        String
+  teacherId        String
+  allowDownload    Boolean      @default(false)
+  issueCertificate Boolean      @default(false)
+  minPassingScore  Int          @default(70)
+  objectives       Json         @default("[]")
+  isRestricted     Boolean      @default(false)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  company     Company      @relation(fields: [companyId], references: [id])
+  teacher     User         @relation("TeacherCourses", fields: [teacherId], references: [id])
+  modules     Module[]
+  enrollments Enrollment[]
+
+  @@index([companyId])
+  @@index([teacherId])
+}
+
+model Module {
+  id       String @id @default(cuid())
+  title    String
+  order    Int
+  courseId String
+
+  course  Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessons Lesson[]
+
+  @@index([courseId])
+}
+
+model Lesson {
+  id              String   @id @default(cuid())
+  title           String
+  description     String?
+  type            String   @default("video")
+  videoUrl        String?
+  durationMinutes Int?
+  order           Int
+  isFree          Boolean  @default(false)
+  moduleId        String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  module   Module           @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  progress LessonProgress[]
+
+  @@index([moduleId])
+}
+
+model Enrollment {
+  id          String           @id @default(cuid())
+  studentId   String
+  courseId    String
+  status      EnrollmentStatus @default(PENDING)
+  requestedAt DateTime         @default(now())
+  approvedAt  DateTime?
+
+  student User   @relation(fields: [studentId], references: [id])
+  course  Course @relation(fields: [courseId], references: [id])
+
+  @@unique([studentId, courseId])
+  @@index([studentId])
+  @@index([courseId])
+}
+
+model LessonProgress {
+  id          String    @id @default(cuid())
+  studentId   String
+  lessonId    String
+  completed   Boolean   @default(false)
+  completedAt DateTime?
+
+  student User   @relation(fields: [studentId], references: [id])
+  lesson  Lesson @relation(fields: [lessonId], references: [id])
+
+  @@unique([studentId, lessonId])
+  @@index([studentId])
+  @@index([lessonId])
+}

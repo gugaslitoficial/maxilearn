@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: maxilearn-db
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-maxilearn}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-maxilearn123}
+      POSTGRES_DB: ${POSTGRES_DB:-maxilearn}
+    ports:
+      - "5432:5432"
+    volumes:
+      - maxilearn_pgdata:/var/lib/postgresql/data
+
+volumes:
+  maxilearn_pgdata:

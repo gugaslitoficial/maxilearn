@@ -1,0 +1,58 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: var(--font-manrope);
+}
+
+@keyframes ml-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes ml-grow {
+  from { width: 0%; }
+}
+
+.animate-float {
+  animation: ml-float 4s ease-in-out infinite;
+}
+
+@keyframes ml-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+.animate-marquee {
+  animation: ml-marquee 25s linear infinite;
+  display: flex;
+  width: max-content;
+}
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+body {
+  background: #ffffff;
+  color: #16100f;
+}
+
+@keyframes ml-pop {
+  0% { transform: scale(0.7); opacity: 0; }
+  60% { transform: scale(1.06); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+select {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #9a9090;
+}
+
+@keyframes ml-slidein {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
