@@ -121,6 +121,9 @@ export class CoursesService {
       const enrollment = await this.prisma.enrollment.findUnique({
         where: { studentId_courseId: { studentId: user.userId, courseId } },
       });
+      if (enrollment?.status === 'REVOKED') {
+        throw new ForbiddenException('Your access to this course has been revoked');
+      }
       return { ...full, enrollmentStatus: enrollment?.status ?? null };
     }
 
