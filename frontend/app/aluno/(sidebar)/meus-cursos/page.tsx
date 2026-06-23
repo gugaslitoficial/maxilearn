@@ -74,7 +74,7 @@ export default function MeusCursosPage() {
                 <XAxis dataKey="week" axisLine={false} tickLine={false} tick={{ fontSize: 12, fontWeight: 700, fill: "#8a807e", fontFamily: "Manrope, sans-serif" }} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "#a89e9c", fontFamily: "Manrope, sans-serif" }} unit="h" />
                 <Tooltip
-                  formatter={(v: number) => [`${v}h`, "Horas"]}
+                  formatter={(v) => [`${v ?? 0}h`, "Horas"]}
                   contentStyle={{ borderRadius: 10, border: "1px solid #ece4e4", fontSize: 13, fontFamily: "Manrope, sans-serif" }}
                   cursor={{ fill: "rgba(0,0,0,0.04)" }}
                 />

@@ -207,7 +207,7 @@ export default function CursoDetalhePage() {
                               {l.title}
                             </Link>
                           ) : (
-                            <span style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: l.status === "current" ? 800 : 600, color: l.status === "locked" ? "#a89e9c" : "#16100f", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                            <span style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 600, color: l.status === "locked" ? "#a89e9c" : "#16100f", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                               {l.title}
                             </span>
                           )}
