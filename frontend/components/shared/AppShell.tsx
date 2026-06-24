@@ -14,6 +14,7 @@ export interface NavItem {
   label: string;
   href: string;
   Icon: ComponentType<{ size?: number; color?: string }>;
+  badge?: number;
 }
 
 export interface AppUser {
@@ -114,7 +115,7 @@ function SidebarContent({ navItems, user, role, sectionLabel, pathname, onClose,
         >
           {sectionLabel}
         </div>
-        {navItems.map(({ key, label, href, Icon }) => {
+        {navItems.map(({ key, label, href, Icon, badge }) => {
           const isActive = active === key;
           return (
             <Link
@@ -137,6 +138,22 @@ function SidebarContent({ navItems, user, role, sectionLabel, pathname, onClose,
             >
               <Icon size={18} color={isActive ? PRIMARY : "#8a807e"} />
               {label}
+              {typeof badge === "number" && badge > 0 && (
+                <span
+                  style={{
+                    marginLeft: "auto",
+                    fontSize: 11,
+                    fontWeight: 800,
+                    color: "#fff",
+                    background: PRIMARY,
+                    padding: "2px 7px",
+                    borderRadius: 100,
+                    flexShrink: 0,
+                  }}
+                >
+                  {badge > 99 ? "99+" : badge}
+                </span>
+              )}
             </Link>
           );
         })}

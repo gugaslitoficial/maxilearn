@@ -91,6 +91,46 @@ export const STATUS_PT_TO_API: Record<string, ApiCourseStatus> = {
   Arquivado: "ARCHIVED",
 };
 
+// ─── Course level mapping ─────────────────────────────────────────────────────
+
+export type ApiCourseLevel = "BEGINNER" | "INTERMEDIATE" | "ADVANCED";
+
+export const LEVEL_LABEL: Record<ApiCourseLevel, string> = {
+  BEGINNER: "Básico",
+  INTERMEDIATE: "Intermediário",
+  ADVANCED: "Avançado",
+};
+
+export const LEVEL_PT_TO_API: Record<string, ApiCourseLevel> = {
+  Básico: "BEGINNER",
+  Intermediário: "INTERMEDIATE",
+  Avançado: "ADVANCED",
+};
+
+// ─── Student progress status mapping ─────────────────────────────────────────
+
+export type StudentProgressStatus = "done" | "progress" | "not_started";
+
+export const STUDENT_PROGRESS_LABEL: Record<StudentProgressStatus, string> = {
+  done: "Concluído",
+  progress: "Em andamento",
+  not_started: "Não iniciado",
+};
+
+// ─── Quiz status mapping ──────────────────────────────────────────────────────
+
+export type ApiQuizStatus = "PUBLISHED" | "DRAFT";
+
+export const QUIZ_STATUS_LABEL: Record<ApiQuizStatus, string> = {
+  PUBLISHED: "Publicado",
+  DRAFT: "Rascunho",
+};
+
+export const QUIZ_STATUS_PT_TO_API: Record<string, ApiQuizStatus> = {
+  Publicado: "PUBLISHED",
+  Rascunho: "DRAFT",
+};
+
 // ─── Error message extraction ─────────────────────────────────────────────────
 
 export function getErrorMessage(err: unknown): string {

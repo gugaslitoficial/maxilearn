@@ -5,13 +5,7 @@ import { LayoutDashboard, BookOpen, Users, ClipboardList } from "lucide-react";
 import { AppShell } from "@/components/shared/AppShell";
 import type { NavItem } from "@/components/shared/AppShell";
 import { useAuth, deriveAppUser, deriveRoleBadge } from "@/lib/auth-context";
-
-const NAV: NavItem[] = [
-  { key: "dashboard", label: "Dashboard", href: "/professor/dashboard", Icon: LayoutDashboard },
-  { key: "cursos", label: "Meus Cursos", href: "/professor/cursos", Icon: BookOpen },
-  { key: "alunos", label: "Alunos", href: "/professor/alunos/liberar", Icon: Users },
-  { key: "quizzes", label: "Quizzes", href: "/professor/quizzes", Icon: ClipboardList },
-];
+import { usePendingEnrollments } from "@/hooks/use-enrollments";
 
 const LOADING_USER = {
   initials: "…",
@@ -29,9 +23,23 @@ const LOADING_ROLE = {
 
 export function ProfessorShell({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
+  const { data: pending } = usePendingEnrollments();
 
   const appUser = user ? deriveAppUser(user) : LOADING_USER;
   const role = user ? deriveRoleBadge(user.role) : LOADING_ROLE;
+
+  const NAV: NavItem[] = [
+    { key: "dashboard", label: "Dashboard", href: "/professor/dashboard", Icon: LayoutDashboard },
+    { key: "cursos", label: "Meus Cursos", href: "/professor/cursos", Icon: BookOpen },
+    {
+      key: "alunos",
+      label: "Alunos",
+      href: "/professor/alunos/liberar",
+      Icon: Users,
+      badge: pending?.total ?? 0,
+    },
+    { key: "quizzes", label: "Quizzes", href: "/professor/quizzes", Icon: ClipboardList },
+  ];
 
   return (
     <AppShell navItems={NAV} user={appUser} role={role} sectionLabel="Professor" onLogout={logout}>

@@ -2,17 +2,21 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { MOCK_QUIZZES } from "@/lib/mock-data";
-import type { MockQuiz } from "@/lib/mock-data";
-
-// TODO: integrar com GET /professor/quizzes
+import {
+  useQuizzes,
+  useDeleteQuiz,
+  useCreateQuiz,
+  type ApiQuiz,
+} from "@/hooks/use-quizzes";
+import { QUIZ_STATUS_LABEL, type ApiQuizStatus } from "@/lib/utils";
+import { Toast } from "@/components/ui/Toast";
 
 const PRIMARY = "#CC1F1F";
 
-const STATUS_STYLE = {
-  Publicado: { color: "#1f8a5b", bg: "#e8f5ee", border: "#cbe8d8" },
-  Rascunho:  { color: "#b9842f", bg: "#fdf3e2", border: "#f3e1bf" },
-} as const;
+const STATUS_STYLE: Record<ApiQuizStatus, { color: string; bg: string; border: string }> = {
+  PUBLISHED: { color: "#1f8a5b", bg: "#e8f5ee", border: "#cbe8d8" },
+  DRAFT:     { color: "#b9842f", bg: "#fdf3e2", border: "#f3e1bf" },
+};
 
 const thStyle = {
   fontSize: 11.5,
@@ -36,22 +40,58 @@ const actBtn = {
   color: "#8a807e",
 } as const;
 
+function Sk({ h, w, r = 6 }: { h: number; w?: number | string; r?: number }) {
+  return (
+    <div
+      className="animate-pulse"
+      style={{ width: w ?? "100%", height: h, borderRadius: r, background: "#f1ece9" }}
+    />
+  );
+}
+
 export default function QuizzesPage() {
-  const [quizzes, setQuizzes] = useState<MockQuiz[]>(MOCK_QUIZZES);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleteQuiz, setDeleteQuiz] = useState<ApiQuiz | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
 
-  function handleDuplicate(id: string) {
-    const original = quizzes.find((q) => q.id === id);
-    if (!original) return;
-    const copy: MockQuiz = { ...original, id: String(Date.now()), name: `${original.name} (cópia)`, status: "Rascunho" };
-    setQuizzes((prev) => [...prev, copy]);
+  const { data, isLoading } = useQuizzes();
+  const deleteMut = useDeleteQuiz();
+  const createMut = useCreateQuiz();
+
+  const quizzes = data?.data ?? [];
+
+  async function handleDuplicate(q: ApiQuiz) {
+    try {
+      await createMut.mutateAsync({
+        title: `${q.title} (cópia)`,
+        courseId: q.courseId,
+        minPassingScore: q.minPassingScore,
+        maxAttempts: q.maxAttempts,
+        shuffleQuestions: q.shuffleQuestions,
+        showAnswersAfter: q.showAnswersAfter,
+        status: "DRAFT",
+      });
+      setToast("Quiz duplicado como rascunho.");
+    } catch {
+      setToast("Erro ao duplicar quiz.");
+    }
   }
 
-  function handleDelete() {
+  async function handleDelete() {
     if (!deleteId) return;
-    setQuizzes((prev) => prev.filter((q) => q.id !== deleteId));
+    try {
+      await deleteMut.mutateAsync(deleteId);
+      setToast("Quiz excluído com sucesso.");
+    } catch (err: unknown) {
+      const anyErr = err as { response?: { data?: { message?: string } } };
+      const msg = anyErr?.response?.data?.message;
+      setToast(typeof msg === "string" ? msg : "Erro ao excluir quiz.");
+    }
     setDeleteId(null);
+    setDeleteQuiz(null);
   }
+
+  const hasSubmissions = (deleteQuiz?.submissionCount ?? 0) > 0;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
@@ -88,64 +128,85 @@ export default function QuizzesPage() {
                 </tr>
               </thead>
               <tbody>
-                {quizzes.map((q) => {
-                  const st = STATUS_STYLE[q.status];
-                  return (
-                    <tr key={q.id} style={{ borderBottom: "1px solid #f6f1f1" }}>
-                      <td style={{ padding: "14px 12px 14px 16px" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                          <div style={{ width: 36, height: 36, borderRadius: 10, flexShrink: 0, background: "#fceeee", display: "flex", alignItems: "center", justifyContent: "center", color: PRIMARY }}>
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M9 11l3 3L22 4"/>
-                              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
-                            </svg>
-                          </div>
-                          <span style={{ fontSize: 14, fontWeight: 700, color: "#16100f" }}>{q.name}</span>
-                        </div>
-                      </td>
-                      <td style={{ padding: "14px 12px", fontSize: 13.5, fontWeight: 500, color: "#6a605e" }}>{q.course}</td>
-                      <td style={{ padding: "14px 12px", textAlign: "center", fontSize: 14, fontWeight: 700, color: "#3a3030" }}>{q.questions}</td>
-                      <td style={{ padding: "14px 12px", textAlign: "center", fontSize: 14, fontWeight: 700, color: "#3a3030" }}>{q.minScore}</td>
-                      <td style={{ padding: "14px 12px", textAlign: "center", fontSize: 14, fontWeight: 600, color: "#6a605e" }}>{q.attempts}</td>
-                      <td style={{ padding: "14px 12px" }}>
-                        <span style={{ display: "inline-flex", alignItems: "center", fontSize: 11.5, fontWeight: 800, color: st.color, background: st.bg, border: `1px solid ${st.border}`, padding: "4px 11px", borderRadius: 100 }}>
-                          {q.status}
-                        </span>
-                      </td>
-                      <td style={{ padding: "14px 16px 14px 12px" }}>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 4 }}>
-                          <Link
-                            href={`/professor/quizzes/novo?edit=${q.id}`}
-                            style={{ ...actBtn, textDecoration: "none" }}
-                            title="Editar"
-                            className="hover:bg-[#f6f1f1]"
-                          >
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
-                          </Link>
-                          <button
-                            onClick={() => handleDuplicate(q.id)}
-                            style={actBtn}
-                            title="Duplicar"
-                            className="hover:bg-[#f6f1f1]"
-                          >
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                          </button>
-                          <button
-                            onClick={() => setDeleteId(q.id)}
-                            style={{ ...actBtn, color: "#c98a8a" }}
-                            title="Excluir"
-                            className="hover:bg-[#fceeee] hover:text-[#CC1F1F]"
-                          >
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
+                {isLoading
+                  ? [0, 1, 2, 3].map((i) => (
+                      <tr key={i} style={{ borderBottom: "1px solid #f6f1f1" }}>
+                        <td style={{ padding: "14px 12px 14px 16px" }}><div style={{ display: "flex", gap: 10, alignItems: "center" }}><Sk h={36} w={36} r={10} /><Sk h={16} w={160} /></div></td>
+                        <td style={{ padding: "14px 12px" }}><Sk h={14} w={120} /></td>
+                        <td style={{ padding: "14px 12px" }}><div style={{ display: "flex", justifyContent: "center" }}><Sk h={14} w={24} /></div></td>
+                        <td style={{ padding: "14px 12px" }}><div style={{ display: "flex", justifyContent: "center" }}><Sk h={14} w={24} /></div></td>
+                        <td style={{ padding: "14px 12px" }}><div style={{ display: "flex", justifyContent: "center" }}><Sk h={14} w={24} /></div></td>
+                        <td style={{ padding: "14px 12px" }}><Sk h={22} w={80} r={100} /></td>
+                        <td style={{ padding: "14px 16px 14px 12px" }}><div style={{ display: "flex", gap: 4, justifyContent: "flex-end" }}><Sk h={34} w={34} r={8} /><Sk h={34} w={34} r={8} /><Sk h={34} w={34} r={8} /></div></td>
+                      </tr>
+                    ))
+                  : quizzes.map((q) => {
+                      const st = STATUS_STYLE[q.status];
+                      return (
+                        <tr key={q.id} style={{ borderBottom: "1px solid #f6f1f1" }}>
+                          <td style={{ padding: "14px 12px 14px 16px" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                              <div style={{ width: 36, height: 36, borderRadius: 10, flexShrink: 0, background: "#fceeee", display: "flex", alignItems: "center", justifyContent: "center", color: PRIMARY }}>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M9 11l3 3L22 4"/>
+                                  <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+                                </svg>
+                              </div>
+                              <span style={{ fontSize: 14, fontWeight: 700, color: "#16100f" }}>{q.title}</span>
+                            </div>
+                          </td>
+                          <td style={{ padding: "14px 12px", fontSize: 13.5, fontWeight: 500, color: "#6a605e" }}>{q.courseName}</td>
+                          <td style={{ padding: "14px 12px", textAlign: "center", fontSize: 14, fontWeight: 700, color: "#3a3030" }}>{q.questionCount}</td>
+                          <td style={{ padding: "14px 12px", textAlign: "center", fontSize: 14, fontWeight: 700, color: "#3a3030" }}>{q.minPassingScore}%</td>
+                          <td style={{ padding: "14px 12px", textAlign: "center", fontSize: 14, fontWeight: 600, color: "#6a605e" }}>{q.maxAttempts ?? "∞"}</td>
+                          <td style={{ padding: "14px 12px" }}>
+                            <span style={{ display: "inline-flex", alignItems: "center", fontSize: 11.5, fontWeight: 800, color: st.color, background: st.bg, border: `1px solid ${st.border}`, padding: "4px 11px", borderRadius: 100 }}>
+                              {QUIZ_STATUS_LABEL[q.status]}
+                            </span>
+                          </td>
+                          <td style={{ padding: "14px 16px 14px 12px" }}>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 4 }}>
+                              <Link
+                                href={`/professor/quizzes/novo?edit=${q.id}`}
+                                style={{ ...actBtn, textDecoration: "none" }}
+                                title="Editar"
+                                className="hover:bg-[#f6f1f1]"
+                              >
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                              </Link>
+                              <button
+                                onClick={() => handleDuplicate(q)}
+                                disabled={createMut.isPending}
+                                style={actBtn}
+                                title="Duplicar"
+                                className="hover:bg-[#f6f1f1]"
+                              >
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                              </button>
+                              <button
+                                onClick={() => { setDeleteId(q.id); setDeleteQuiz(q); }}
+                                style={{ ...actBtn, color: "#c98a8a" }}
+                                title="Excluir"
+                                className="hover:bg-[#fceeee] hover:text-[#CC1F1F]"
+                              >
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
               </tbody>
             </table>
           </div>
+          {!isLoading && quizzes.length === 0 && (
+            <div style={{ textAlign: "center", padding: "48px 20px" }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: "#16100f" }}>Nenhum quiz criado ainda.</div>
+              <Link href="/professor/quizzes/novo" style={{ display: "inline-flex", alignItems: "center", gap: 8, marginTop: 14, fontSize: 14, fontWeight: 700, color: "#fff", background: PRIMARY, padding: "11px 18px", borderRadius: 10, textDecoration: "none" }}>
+                Criar primeiro quiz
+              </Link>
+            </div>
+          )}
         </div>
       </div>
 
@@ -153,7 +214,7 @@ export default function QuizzesPage() {
       {deleteId && (
         <div
           style={{ position: "fixed", inset: 0, background: "rgba(20,10,10,0.45)", backdropFilter: "blur(2px)", zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}
-          onClick={() => setDeleteId(null)}
+          onClick={() => { setDeleteId(null); setDeleteQuiz(null); }}
         >
           <div
             onClick={(e) => e.stopPropagation()}
@@ -165,20 +226,33 @@ export default function QuizzesPage() {
               </div>
               <h2 style={{ fontSize: 19, fontWeight: 800, letterSpacing: "-0.02em", color: "#16100f", marginTop: 16 }}>Excluir quiz</h2>
               <p style={{ fontSize: 14, lineHeight: 1.55, fontWeight: 500, color: "#6a605e", marginTop: 8 }}>
-                Tem certeza que deseja excluir <strong style={{ color: "#16100f" }}>{quizzes.find((q) => q.id === deleteId)?.name}</strong>? Esta ação não pode ser desfeita.
+                {hasSubmissions
+                  ? `Este quiz possui ${deleteQuiz!.submissionCount} resposta(s) registrada(s). Exclua as respostas antes de excluir o quiz.`
+                  : <>Tem certeza que deseja excluir <strong style={{ color: "#16100f" }}>{deleteQuiz?.title}</strong>? Esta ação não pode ser desfeita.</>}
               </p>
             </div>
             <div style={{ padding: "24px 26px", display: "flex", gap: 12 }}>
-              <button onClick={() => setDeleteId(null)} style={{ flex: 1, fontFamily: "inherit", fontSize: 14.5, fontWeight: 700, color: "#16100f", background: "#fff", border: "1.5px solid #e2d9d9", borderRadius: 11, padding: 13, cursor: "pointer" }}>
-                Cancelar
+              <button
+                onClick={() => { setDeleteId(null); setDeleteQuiz(null); }}
+                style={{ flex: 1, fontFamily: "inherit", fontSize: 14.5, fontWeight: 700, color: "#16100f", background: "#fff", border: "1.5px solid #e2d9d9", borderRadius: 11, padding: 13, cursor: "pointer" }}
+              >
+                {hasSubmissions ? "Fechar" : "Cancelar"}
               </button>
-              <button onClick={handleDelete} style={{ flex: 1, fontFamily: "inherit", fontSize: 14.5, fontWeight: 800, color: "#fff", background: PRIMARY, border: "none", borderRadius: 11, padding: 13, cursor: "pointer" }}>
-                Excluir
-              </button>
+              {!hasSubmissions && (
+                <button
+                  onClick={handleDelete}
+                  disabled={deleteMut.isPending}
+                  style={{ flex: 1, fontFamily: "inherit", fontSize: 14.5, fontWeight: 800, color: "#fff", background: PRIMARY, border: "none", borderRadius: 11, padding: 13, cursor: "pointer" }}
+                >
+                  {deleteMut.isPending ? "Excluindo…" : "Excluir"}
+                </button>
+              )}
             </div>
           </div>
         </div>
       )}
+
+      <Toast message={toast} onDismiss={() => setToast(null)} />
     </div>
   );
 }
