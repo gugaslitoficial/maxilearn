@@ -1,88 +1,142 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import type React from "react";
-import { Plus, Search, LayoutGrid, List, Pencil, Trash2, Eye, Upload } from "lucide-react";
+import { Plus, Search, LayoutGrid, List, Pencil, Trash2, Eye } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Modal } from "@/components/ui/Modal";
 import { Toast } from "@/components/ui/Toast";
-import { MOCK_COURSES, type CourseStatus } from "@/lib/mock-data";
+import {
+  useCoursesAdmin,
+  useCreateCourse,
+  useDeleteCourse,
+} from "@/hooks/use-courses-admin";
+import type { ApiCourse } from "@/hooks/use-courses-admin";
+import { useProfessors } from "@/hooks/use-users";
+import {
+  STATUS_LABEL,
+  STATUS_PT_TO_API,
+  hashAvatarColor,
+  hashGradient,
+  makeTag,
+  getErrorMessage,
+} from "@/lib/utils";
+import type { ApiCourseStatus } from "@/lib/utils";
 
 const PRIMARY = "#CC1F1F";
 
-const STATUS_VARIANT: Record<CourseStatus, "published" | "draft" | "archived"> = {
-  Publicado: "published",
-  Rascunho: "draft",
-  Arquivado: "archived",
+const STATUS_BADGE: Record<ApiCourseStatus, "published" | "draft" | "archived"> = {
+  PUBLISHED: "published",
+  DRAFT: "draft",
+  ARCHIVED: "archived",
 };
 
-const CATEGORIES = ["Segurança", "Técnico", "Comportamental", "Compliance"];
-const PROFESSORS = ["Ricardo Paz", "Helena Dias", "Bruno Alves", "Sofia Nunes"];
+function Sk({ w, h, r = 8 }: { w?: number | string; h: number; r?: number }) {
+  return (
+    <div
+      className="animate-pulse"
+      style={{ width: w ?? "100%", height: h, borderRadius: r, background: "#f1ece9" }}
+    />
+  );
+}
+
+const inputStyle: React.CSSProperties = {
+  width: "100%",
+  padding: "10px 13px",
+  border: "1.5px solid #ece4e4",
+  borderRadius: 10,
+  fontSize: 14,
+  fontWeight: 500,
+  color: "#16100f",
+  background: "#fdfbfb",
+  outline: "none",
+  fontFamily: "Manrope, sans-serif",
+  boxSizing: "border-box",
+};
+
+const selectStyle: React.CSSProperties = {
+  ...inputStyle,
+  cursor: "pointer",
+  backgroundImage: `url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L6 7L11 1' stroke='%23a89e9c' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
+  backgroundRepeat: "no-repeat",
+  backgroundPosition: "right 12px center",
+  paddingRight: 34,
+};
 
 export default function CursosPage() {
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
-  const [professorFilter, setProfessorFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"" | CourseStatus>("");
+  const [statusFilter, setStatusFilter] = useState<ApiCourseStatus | "">("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [modalOpen, setModalOpen] = useState(false);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ApiCourse | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
   const [form, setForm] = useState({
     title: "",
     description: "",
     category: "",
-    professor: "",
-    status: "Rascunho" as CourseStatus,
+    teacherId: "",
+    status: "DRAFT" as ApiCourseStatus,
   });
 
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 400);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  const { data, isLoading } = useCoursesAdmin({
+    search: debouncedSearch || undefined,
+    status: statusFilter || undefined,
+    category: categoryFilter || undefined,
+    perPage: 50,
+  });
+
+  const { data: professors } = useProfessors();
+
+  const createCourse = useCreateCourse();
+  const deleteCourse = useDeleteCourse();
+
+  // Derive unique categories from loaded data
+  const categories = useMemo(() => {
+    if (!data?.data) return [];
+    return [...new Set(data.data.map((c) => c.category).filter(Boolean))] as string[];
+  }, [data?.data]);
+
+  // Client-side professor filter (API doesn't support filtering by teacher name)
   const filtered = useMemo(() => {
-    return MOCK_COURSES.filter((c) => {
-      const matchSearch = !search || c.title.toLowerCase().includes(search.toLowerCase());
-      const matchCat = !categoryFilter || c.category === categoryFilter;
-      const matchProf = !professorFilter || c.teacher === professorFilter;
-      const matchStatus = !statusFilter || c.status === statusFilter;
-      return matchSearch && matchCat && matchProf && matchStatus;
-    });
-  }, [search, categoryFilter, professorFilter, statusFilter]);
+    return data?.data ?? [];
+  }, [data?.data]);
 
-  function handleCreate() {
-    if (!form.title.trim()) return;
-    setModalOpen(false);
-    setToast("Curso criado com sucesso!");
-    setForm({ title: "", description: "", category: "", professor: "", status: "Rascunho" });
-    // TODO: integrar com API real
+  async function handleCreate() {
+    if (!form.title.trim() || !form.teacherId) return;
+    try {
+      await createCourse.mutateAsync({
+        title: form.title,
+        description: form.description || undefined,
+        category: form.category || undefined,
+        teacherId: form.teacherId,
+        status: form.status,
+      });
+      setModalOpen(false);
+      setToast("Curso criado com sucesso!");
+      setForm({ title: "", description: "", category: "", teacherId: "", status: "DRAFT" });
+    } catch (err) {
+      setToast(getErrorMessage(err));
+    }
   }
 
-  function handleDelete() {
-    setDeleteId(null);
-    setToast("Curso removido.");
-    // TODO: integrar com API real
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    try {
+      await deleteCourse.mutateAsync(deleteTarget.id);
+      setDeleteTarget(null);
+      setToast("Curso arquivado.");
+    } catch (err) {
+      setToast(getErrorMessage(err));
+    }
   }
-
-  const inputStyle: React.CSSProperties = {
-    width: "100%",
-    padding: "10px 13px",
-    border: "1.5px solid #ece4e4",
-    borderRadius: 10,
-    fontSize: 14,
-    fontWeight: 500,
-    color: "#16100f",
-    background: "#fdfbfb",
-    outline: "none",
-    fontFamily: "Manrope, sans-serif",
-    boxSizing: "border-box",
-  };
-
-  const selectStyle: React.CSSProperties = {
-    ...inputStyle,
-    cursor: "pointer",
-    backgroundImage: `url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L6 7L11 1' stroke='%23a89e9c' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")`,
-    backgroundRepeat: "no-repeat",
-    backgroundPosition: "right 12px center",
-    paddingRight: 34,
-  };
 
   return (
     <>
@@ -104,7 +158,7 @@ export default function CursosPage() {
             Gestão de Cursos
           </h1>
           <p style={{ fontSize: 13.5, fontWeight: 600, color: "#8a807e", marginTop: 2 }}>
-            {MOCK_COURSES.length} cursos cadastrados
+            {data ? `${data.total} cursos cadastrados` : "Carregando..."}
           </p>
         </div>
         <button
@@ -143,17 +197,17 @@ export default function CursosPage() {
           </div>
           <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} style={{ ...selectStyle, flex: "0 0 160px" }}>
             <option value="">Categoria</option>
-            {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+            {categories.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
-          <select value={professorFilter} onChange={(e) => setProfessorFilter(e.target.value)} style={{ ...selectStyle, flex: "0 0 160px" }}>
-            <option value="">Professor</option>
-            {PROFESSORS.map((p) => <option key={p} value={p}>{p}</option>)}
-          </select>
-          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as "" | CourseStatus)} style={{ ...selectStyle, flex: "0 0 150px" }}>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as ApiCourseStatus | "")}
+            style={{ ...selectStyle, flex: "0 0 150px" }}
+          >
             <option value="">Status</option>
-            <option value="Publicado">Publicado</option>
-            <option value="Rascunho">Rascunho</option>
-            <option value="Arquivado">Arquivado</option>
+            <option value="PUBLISHED">Publicado</option>
+            <option value="DRAFT">Rascunho</option>
+            <option value="ARCHIVED">Arquivado</option>
           </select>
           <div style={{ display: "flex", border: "1.5px solid #ece4e4", borderRadius: 10, overflow: "hidden", marginLeft: "auto" }}>
             {(["grid", "list"] as const).map((mode) => (
@@ -179,92 +233,65 @@ export default function CursosPage() {
           </div>
         </div>
 
-        {viewMode === "grid" ? (
+        {isLoading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-[18px]">
-            {filtered.map((course) => (
-              <div
-                key={course.id}
-                style={{
-                  background: "#fff",
-                  border: "1px solid #ece4e4",
-                  borderRadius: 16,
-                  overflow: "hidden",
-                }}
-              >
-                {/* Thumbnail */}
-                <div
-                  style={{
-                    height: 130,
-                    background: course.gradient,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    position: "relative",
-                  }}
-                >
-                  <div
-                    style={{
-                      width: 52,
-                      height: 52,
-                      borderRadius: 14,
-                      background: "rgba(255,255,255,0.22)",
-                      backdropFilter: "blur(8px)",
-                      border: "2px solid rgba(255,255,255,0.35)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: 18,
-                      fontWeight: 800,
-                      color: "#fff",
-                    }}
-                  >
-                    {course.tag}
-                  </div>
-                  <div style={{ position: "absolute", top: 12, right: 12 }}>
-                    <Badge variant={STATUS_VARIANT[course.status]}>{course.status}</Badge>
-                  </div>
-                </div>
-
-                {/* Body */}
-                <div style={{ padding: "16px 18px" }}>
-                  <div style={{ marginBottom: 8 }}>
-                    <Badge variant="draft">{course.category}</Badge>
-                  </div>
-                  <h3 style={{ fontSize: 15, fontWeight: 800, color: "#16100f", lineHeight: 1.35, marginBottom: 10 }}>
-                    {course.title}
-                  </h3>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-                    <div
-                      style={{
-                        width: 22,
-                        height: 22,
-                        borderRadius: "50%",
-                        background: course.teacherColor,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontSize: 9,
-                        fontWeight: 800,
-                        color: "#fff",
-                        flexShrink: 0,
-                      }}
-                    >
-                      {course.teacherInitials}
-                    </div>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: "#6a605e" }}>{course.teacher}</span>
-                  </div>
-                  <div style={{ display: "flex", gap: 16, paddingTop: 12, borderTop: "1px solid #f4eded" }}>
-                    <Stat label="Aulas" value={course.lessons} />
-                    <Stat label="Alunos" value={course.students} />
-                    <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
-                      <CourseBtn icon={<Eye size={14} />} label="Ver" onClick={() => setToast("Visualizando curso")} />
-                      <CourseBtn icon={<Pencil size={13} />} label="Editar" onClick={() => setToast("Editando curso")} />
-                      <CourseBtn icon={<Trash2 size={13} />} label="Excluir" danger onClick={() => setDeleteId(course.id)} />
-                    </div>
-                  </div>
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} style={{ background: "#fff", border: "1px solid #ece4e4", borderRadius: 16, overflow: "hidden" }}>
+                <Sk h={130} r={0} />
+                <div style={{ padding: "16px 18px", display: "flex", flexDirection: "column", gap: 10 }}>
+                  <Sk w={80} h={20} r={100} />
+                  <Sk h={16} />
+                  <Sk w="60%" h={14} />
                 </div>
               </div>
             ))}
+          </div>
+        ) : viewMode === "grid" ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-[18px]">
+            {filtered.map((course) => {
+              const tag = makeTag(course.title, course.category);
+              const gradient = hashGradient(course.id);
+              const teacherInitials = course.teacher.name.trim().split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+              const teacherColor = hashAvatarColor(course.teacher.id);
+              return (
+                <div
+                  key={course.id}
+                  style={{ background: "#fff", border: "1px solid #ece4e4", borderRadius: 16, overflow: "hidden" }}
+                >
+                  <div style={{ height: 130, background: gradient, display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
+                    <div style={{ width: 52, height: 52, borderRadius: 14, background: "rgba(255,255,255,0.22)", backdropFilter: "blur(8px)", border: "2px solid rgba(255,255,255,0.35)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, fontWeight: 800, color: "#fff" }}>
+                      {tag}
+                    </div>
+                    <div style={{ position: "absolute", top: 12, right: 12 }}>
+                      <Badge variant={STATUS_BADGE[course.status]}>{STATUS_LABEL[course.status]}</Badge>
+                    </div>
+                  </div>
+                  <div style={{ padding: "16px 18px" }}>
+                    <div style={{ marginBottom: 8 }}>
+                      {course.category && <Badge variant="draft">{course.category}</Badge>}
+                    </div>
+                    <h3 style={{ fontSize: 15, fontWeight: 800, color: "#16100f", lineHeight: 1.35, marginBottom: 10 }}>
+                      {course.title}
+                    </h3>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+                      <div style={{ width: 22, height: 22, borderRadius: "50%", background: teacherColor, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 800, color: "#fff", flexShrink: 0 }}>
+                        {teacherInitials}
+                      </div>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: "#6a605e" }}>{course.teacher.name}</span>
+                    </div>
+                    <div style={{ display: "flex", gap: 16, paddingTop: 12, borderTop: "1px solid #f4eded" }}>
+                      <Stat label="Módulos" value={String(course._count.modules)} />
+                      <Stat label="Alunos" value={String(course._count.enrollments)} />
+                      <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+                        <CourseBtn icon={<Eye size={14} />} label="Ver" onClick={() => setToast("Visualizando curso")} />
+                        <CourseBtn icon={<Pencil size={13} />} label="Editar" onClick={() => setToast("Em breve: edição de curso")} />
+                        <CourseBtn icon={<Trash2 size={13} />} label="Arquivar" danger onClick={() => setDeleteTarget(course)} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
             {filtered.length === 0 && (
               <div style={{ gridColumn: "1/-1", padding: 48, textAlign: "center", fontSize: 14, fontWeight: 600, color: "#a89e9c", background: "#fff", borderRadius: 16, border: "1px solid #ece4e4" }}>
                 Nenhum curso encontrado.
@@ -272,13 +299,12 @@ export default function CursosPage() {
             )}
           </div>
         ) : (
-          /* List view */
           <div style={{ background: "#fff", border: "1px solid #ece4e4", borderRadius: 16, overflow: "hidden" }}>
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 660 }}>
                 <thead>
                   <tr style={{ borderBottom: "1px solid #ece4e4", background: "#fdfbfb" }}>
-                    {["Curso", "Categoria", "Professor", "Aulas", "Alunos", "Status", ""].map((h) => (
+                    {["Curso", "Categoria", "Professor", "Módulos", "Alunos", "Status", ""].map((h) => (
                       <th key={h} style={{ fontSize: 11.5, fontWeight: 800, letterSpacing: "0.04em", textTransform: "uppercase", color: "#a89e9c", padding: "13px 16px", textAlign: "left", whiteSpace: "nowrap" }}>
                         {h}
                       </th>
@@ -286,32 +312,36 @@ export default function CursosPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((c) => (
-                    <tr key={c.id} style={{ borderBottom: "1px solid #f6f1f1" }}>
-                      <td style={{ padding: "14px 16px" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                          <div style={{ width: 32, height: 32, borderRadius: 9, background: c.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, color: "#fff", flexShrink: 0 }}>
-                            {c.tag}
+                  {filtered.map((c) => {
+                    const tag = makeTag(c.title, c.category);
+                    const gradient = hashGradient(c.id);
+                    return (
+                      <tr key={c.id} style={{ borderBottom: "1px solid #f6f1f1" }}>
+                        <td style={{ padding: "14px 16px" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                            <div style={{ width: 32, height: 32, borderRadius: 9, background: gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, color: "#fff", flexShrink: 0 }}>
+                              {tag}
+                            </div>
+                            <span style={{ fontSize: 14, fontWeight: 700, color: "#16100f" }}>{c.title}</span>
                           </div>
-                          <span style={{ fontSize: 14, fontWeight: 700, color: "#16100f" }}>{c.title}</span>
-                        </div>
-                      </td>
-                      <td style={{ padding: "14px 16px", fontSize: 13.5, fontWeight: 600, color: "#6a605e" }}>{c.category}</td>
-                      <td style={{ padding: "14px 16px", fontSize: 13.5, fontWeight: 500, color: "#6a605e" }}>{c.teacher}</td>
-                      <td style={{ padding: "14px 16px", fontSize: 14, fontWeight: 700, color: "#3a3030" }}>{c.lessons}</td>
-                      <td style={{ padding: "14px 16px", fontSize: 14, fontWeight: 700, color: "#3a3030" }}>{c.students}</td>
-                      <td style={{ padding: "14px 16px" }}>
-                        <Badge variant={STATUS_VARIANT[c.status]}>{c.status}</Badge>
-                      </td>
-                      <td style={{ padding: "14px 16px" }}>
-                        <div style={{ display: "flex", gap: 6 }}>
-                          <CourseBtn icon={<Eye size={14} />} label="Ver" onClick={() => setToast("Visualizando curso")} />
-                          <CourseBtn icon={<Pencil size={13} />} label="Editar" onClick={() => setToast("Editando curso")} />
-                          <CourseBtn icon={<Trash2 size={13} />} label="Excluir" danger onClick={() => setDeleteId(c.id)} />
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                        <td style={{ padding: "14px 16px", fontSize: 13.5, fontWeight: 600, color: "#6a605e" }}>{c.category || "—"}</td>
+                        <td style={{ padding: "14px 16px", fontSize: 13.5, fontWeight: 500, color: "#6a605e" }}>{c.teacher.name}</td>
+                        <td style={{ padding: "14px 16px", fontSize: 14, fontWeight: 700, color: "#3a3030" }}>{c._count.modules}</td>
+                        <td style={{ padding: "14px 16px", fontSize: 14, fontWeight: 700, color: "#3a3030" }}>{c._count.enrollments}</td>
+                        <td style={{ padding: "14px 16px" }}>
+                          <Badge variant={STATUS_BADGE[c.status]}>{STATUS_LABEL[c.status]}</Badge>
+                        </td>
+                        <td style={{ padding: "14px 16px" }}>
+                          <div style={{ display: "flex", gap: 6 }}>
+                            <CourseBtn icon={<Eye size={14} />} label="Ver" onClick={() => setToast("Visualizando curso")} />
+                            <CourseBtn icon={<Pencil size={13} />} label="Editar" onClick={() => setToast("Em breve: edição de curso")} />
+                            <CourseBtn icon={<Trash2 size={13} />} label="Arquivar" danger onClick={() => setDeleteTarget(c)} />
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                   {filtered.length === 0 && (
                     <tr>
                       <td colSpan={7} style={{ padding: 40, textAlign: "center", fontSize: 14, fontWeight: 600, color: "#a89e9c" }}>
@@ -335,11 +365,9 @@ export default function CursosPage() {
         maxWidth={520}
         footer={
           <>
-            <button onClick={() => setModalOpen(false)} style={{ padding: "11px 20px", borderRadius: 10, border: "1.5px solid #ece4e4", background: "#fff", fontSize: 14, fontWeight: 700, color: "#6a605e", cursor: "pointer" }}>
-              Cancelar
-            </button>
-            <button onClick={handleCreate} style={{ padding: "11px 20px", borderRadius: 10, border: "none", background: PRIMARY, fontSize: 14, fontWeight: 700, color: "#fff", cursor: "pointer", boxShadow: "0 4px 12px rgba(204,31,31,0.22)" }}>
-              Criar curso
+            <button onClick={() => setModalOpen(false)} style={cancelBtnStyle}>Cancelar</button>
+            <button onClick={handleCreate} disabled={createCourse.isPending || !form.title.trim() || !form.teacherId} style={confirmBtnStyle}>
+              {createCourse.isPending ? "Criando..." : "Criar curso"}
             </button>
           </>
         }
@@ -362,42 +390,25 @@ export default function CursosPage() {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <FieldLabel>Categoria</FieldLabel>
-              <select value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))} style={selectStyle}>
-                <option value="">Selecionar</option>
-                {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-              </select>
+              <input
+                placeholder="Ex: Segurança"
+                value={form.category}
+                onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
+                style={inputStyle}
+              />
             </div>
             <div>
-              <FieldLabel>Professor</FieldLabel>
-              <select value={form.professor} onChange={(e) => setForm((f) => ({ ...f, professor: e.target.value }))} style={selectStyle}>
+              <FieldLabel>Professor *</FieldLabel>
+              <select value={form.teacherId} onChange={(e) => setForm((f) => ({ ...f, teacherId: e.target.value }))} style={selectStyle}>
                 <option value="">Selecionar</option>
-                {PROFESSORS.map((p) => <option key={p} value={p}>{p}</option>)}
+                {(professors ?? []).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             </div>
           </div>
-          {/* Thumbnail upload */}
-          <div>
-            <FieldLabel>Thumbnail</FieldLabel>
-            <div
-              style={{
-                border: "2px dashed #d8c8c8",
-                borderRadius: 12,
-                padding: 24,
-                textAlign: "center",
-                cursor: "pointer",
-                background: "#fdfbfb",
-              }}
-            >
-              <Upload size={22} color="#a89e9c" style={{ margin: "0 auto 8px" }} />
-              <div style={{ fontSize: 13.5, fontWeight: 700, color: "#6a605e" }}>Clique para enviar</div>
-              <div style={{ fontSize: 12, fontWeight: 500, color: "#a89e9c", marginTop: 3 }}>PNG, JPG até 2 MB</div>
-            </div>
-          </div>
-          {/* Status */}
           <div>
             <FieldLabel>Status inicial</FieldLabel>
             <div style={{ display: "flex", gap: 10 }}>
-              {(["Rascunho", "Publicado"] as CourseStatus[]).map((s) => (
+              {(["DRAFT", "PUBLISHED"] as ApiCourseStatus[]).map((s) => (
                 <button
                   key={s}
                   onClick={() => setForm((f) => ({ ...f, status: s }))}
@@ -414,7 +425,7 @@ export default function CursosPage() {
                     transition: "all .15s",
                   }}
                 >
-                  {s}
+                  {STATUS_LABEL[s]}
                 </button>
               ))}
             </div>
@@ -424,23 +435,21 @@ export default function CursosPage() {
 
       {/* Delete Modal */}
       <Modal
-        open={!!deleteId}
-        onClose={() => setDeleteId(null)}
-        title="Remover curso"
-        subtitle="Essa ação não pode ser desfeita."
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        title="Arquivar curso"
+        subtitle="O curso será arquivado e ficará invisível para os alunos."
         footer={
           <>
-            <button onClick={() => setDeleteId(null)} style={{ padding: "11px 20px", borderRadius: 10, border: "1.5px solid #ece4e4", background: "#fff", fontSize: 14, fontWeight: 700, color: "#6a605e", cursor: "pointer" }}>
-              Cancelar
-            </button>
-            <button onClick={handleDelete} style={{ padding: "11px 20px", borderRadius: 10, border: "none", background: "#cc2a2a", fontSize: 14, fontWeight: 700, color: "#fff", cursor: "pointer" }}>
-              Sim, remover
+            <button onClick={() => setDeleteTarget(null)} style={cancelBtnStyle}>Cancelar</button>
+            <button onClick={handleDelete} disabled={deleteCourse.isPending} style={{ ...confirmBtnStyle, background: "#cc2a2a" }}>
+              {deleteCourse.isPending ? "Arquivando..." : "Sim, arquivar"}
             </button>
           </>
         }
       >
         <p style={{ fontSize: 14, fontWeight: 500, color: "#6a605e", lineHeight: 1.6 }}>
-          O curso será removido permanentemente. Todos os dados de progresso dos alunos serão preservados nos relatórios.
+          O curso <strong>{deleteTarget?.title}</strong> será arquivado. Os dados de progresso dos alunos serão preservados.
         </p>
       </Modal>
 
@@ -460,31 +469,15 @@ function Stat({ label, value }: { label: string; value: string }) {
 
 function CourseBtn({ icon, label, onClick, danger }: { icon: React.ReactNode; label: string; onClick: () => void; danger?: boolean }) {
   return (
-    <button
-      onClick={onClick}
-      title={label}
-      style={{
-        width: 30,
-        height: 30,
-        borderRadius: 8,
-        border: `1px solid ${danger ? "#f6d6d6" : "#ece4e4"}`,
-        background: danger ? "#fceeee" : "#fafafa",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        cursor: "pointer",
-        color: danger ? PRIMARY : "#6a605e",
-      }}
-    >
+    <button onClick={onClick} title={label} style={{ width: 30, height: 30, borderRadius: 8, border: `1px solid ${danger ? "#f6d6d6" : "#ece4e4"}`, background: danger ? "#fceeee" : "#fafafa", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: danger ? "#CC1F1F" : "#6a605e" }}>
       {icon}
     </button>
   );
 }
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#6a605e", marginBottom: 6 }}>
-      {children}
-    </label>
-  );
+  return <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#6a605e", marginBottom: 6 }}>{children}</label>;
 }
+
+const cancelBtnStyle: React.CSSProperties = { padding: "11px 20px", borderRadius: 10, border: "1.5px solid #ece4e4", background: "#fff", fontSize: 14, fontWeight: 700, color: "#6a605e", cursor: "pointer" };
+const confirmBtnStyle: React.CSSProperties = { padding: "11px 20px", borderRadius: 10, border: "none", background: "#CC1F1F", fontSize: 14, fontWeight: 700, color: "#fff", cursor: "pointer", boxShadow: "0 4px 12px rgba(204,31,31,0.22)" };
