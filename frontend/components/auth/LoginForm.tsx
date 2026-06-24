@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import axios from "axios";
 import type { CSSProperties, FormEvent } from "react";
+import { useAuth } from "@/hooks/use-auth";
 
 interface FormErrors {
   email?: string;
@@ -45,20 +46,39 @@ function EyeOff() {
   );
 }
 
-// Mock credentials for local testing
-const MOCK_USERS = [
-  { email: "admin@maxilearn.com", password: "admin123", redirect: "/dashboard", role: "Admin" },
-  { email: "professor@maxilearn.com", password: "prof123", redirect: "/professor/dashboard", role: "Professor" },
-  { email: "aluno@maxilearn.com", password: "aluno123", redirect: "/aluno/dashboard", role: "Estudante" },
-] as const;
+function Spinner() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      style={{ animation: "spin 0.75s linear infinite" }}
+    >
+      <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+    </svg>
+  );
+}
+
+function extractErrorMessage(err: unknown): string {
+  if (axios.isAxiosError(err)) {
+    const data = err.response?.data as { message?: string } | undefined;
+    if (typeof data?.message === "string") return data.message;
+  }
+  return "Erro ao fazer login. Tente novamente.";
+}
 
 export function LoginForm() {
-  const router = useRouter();
+  const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
   const [authError, setAuthError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   function validate(): FormErrors {
     const e: FormErrors = {};
@@ -68,7 +88,7 @@ export function LoginForm() {
     return e;
   }
 
-  function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     const errs = validate();
     if (Object.keys(errs).length > 0) {
@@ -77,23 +97,13 @@ export function LoginForm() {
     }
     setErrors({});
     setAuthError("");
-    // TODO: integrar com POST /auth/login na próxima etapa
-    const match = MOCK_USERS.find(
-      (u) => u.email === email.trim().toLowerCase() && u.password === password
-    );
-    if (match) {
-      router.push(match.redirect);
-    } else {
-      setAuthError("E-mail ou senha incorretos.");
+    setIsSubmitting(true);
+    try {
+      await login(email.trim(), password);
+    } catch (err) {
+      setAuthError(extractErrorMessage(err));
+      setIsSubmitting(false);
     }
-  }
-
-  function quickAccess(user: typeof MOCK_USERS[number]) {
-    setEmail(user.email);
-    setPassword(user.password);
-    setErrors({});
-    setAuthError("");
-    router.push(user.redirect);
   }
 
   return (
@@ -106,6 +116,7 @@ export function LoginForm() {
         minHeight: "100vh",
       }}
     >
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       <div
         style={{
           flex: 1,
@@ -197,6 +208,7 @@ export function LoginForm() {
             placeholder="voce@empresa.com.br"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            disabled={isSubmitting}
             style={{ ...inputBase, borderColor: errors.email ? "#CC1F1F" : "#eadfdf" }}
             className="focus:border-[#CC1F1F] focus:bg-white"
           />
@@ -230,6 +242,7 @@ export function LoginForm() {
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              disabled={isSubmitting}
               style={{
                 ...inputBase,
                 paddingRight: 46,
@@ -277,8 +290,12 @@ export function LoginForm() {
           {/* Entrar */}
           <button
             type="submit"
+            disabled={isSubmitting}
             style={{
-              display: "block",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 8,
               width: "100%",
               marginTop: 24,
               fontFamily: "inherit",
@@ -289,44 +306,17 @@ export function LoginForm() {
               border: "none",
               borderRadius: 11,
               padding: 15,
-              cursor: "pointer",
+              cursor: isSubmitting ? "not-allowed" : "pointer",
               boxShadow: "0 10px 24px rgba(204,31,31,0.28)",
+              opacity: isSubmitting ? 0.8 : 1,
+              transition: "opacity .15s",
             }}
             className="hover:opacity-90 transition-opacity"
           >
-            Entrar
+            {isSubmitting && <Spinner />}
+            {isSubmitting ? "Entrando…" : "Entrar"}
           </button>
         </form>
-
-        {/* Quick access (dev only) */}
-        <div style={{ marginTop: 28, padding: "18px 20px", background: "#faf7f7", border: "1px solid #ece4e4", borderRadius: 14 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 14 }}>
-            <div style={{ height: 1, flex: 1, background: "#ece4e4" }} />
-            <span style={{ fontSize: 11.5, fontWeight: 800, letterSpacing: "0.06em", textTransform: "uppercase" as const, color: "#b3a6a6", whiteSpace: "nowrap" as const }}>Acesso rápido (mock)</span>
-            <div style={{ height: 1, flex: 1, background: "#ece4e4" }} />
-          </div>
-          <div style={{ display: "flex", flexDirection: "column" as const, gap: 9 }}>
-            {MOCK_USERS.map((u) => (
-              <button
-                key={u.email}
-                type="button"
-                onClick={() => quickAccess(u)}
-                style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 14px", background: "#fff", border: "1.5px solid #e6dede", borderRadius: 11, cursor: "pointer", fontFamily: "inherit", textAlign: "left" as const, width: "100%" }}
-              >
-                <div style={{ width: 34, height: 34, borderRadius: 9, background: u.role === "Admin" ? "#CC1F1F" : u.role === "Professor" ? "#3a6ea5" : "#1f8a5b", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, color: "#fff", flexShrink: 0 }}>
-                  {u.role === "Admin" ? "AD" : u.role === "Professor" ? "PR" : "AL"}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13.5, fontWeight: 800, color: "#16100f" }}>{u.role}</div>
-                  <div style={{ fontSize: 12, fontWeight: 500, color: "#8a807e", marginTop: 1 }}>{u.email}</div>
-                </div>
-                <div style={{ fontSize: 11.5, fontWeight: 700, color: "#a89e9c", flexShrink: 0 }}>
-                  Entrar →
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
 
         {/* Divider */}
         <div style={{ display: "flex", alignItems: "center", gap: 14, margin: "24px 0" }}>

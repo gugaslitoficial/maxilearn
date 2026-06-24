@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode, ComponentType } from "react";
-import { Menu, X } from "lucide-react";
+import { Menu, X, LogOut } from "lucide-react";
 import { NotificationsDropdown } from "@/components/ui/NotificationsDropdown";
 
 const PRIMARY = "#CC1F1F";
@@ -37,9 +37,10 @@ interface SidebarContentProps {
   sectionLabel: string;
   pathname: string;
   onClose?: () => void;
+  onLogout?: () => void;
 }
 
-function SidebarContent({ navItems, user, role, sectionLabel, pathname, onClose }: SidebarContentProps) {
+function SidebarContent({ navItems, user, role, sectionLabel, pathname, onClose, onLogout }: SidebarContentProps) {
   const active = navItems.find((n) => pathname === n.href || pathname.startsWith(n.href + "/"))?.key ?? navItems[0]?.key;
 
   return (
@@ -142,60 +143,88 @@ function SidebarContent({ navItems, user, role, sectionLabel, pathname, onClose 
       </nav>
 
       {/* User footer */}
-      <Link
-        href="/perfil"
-        onClick={onClose}
-        style={{
-          borderTop: "1px solid #f4eded",
-          padding: 14,
-          display: "flex",
-          alignItems: "center",
-          gap: 11,
-          textDecoration: "none",
-        }}
-      >
-        <div
+      <div style={{ borderTop: "1px solid #f4eded", display: "flex", alignItems: "center" }}>
+        <Link
+          href="/perfil"
+          onClick={onClose}
           style={{
-            width: 38,
-            height: 38,
-            borderRadius: "50%",
-            background: user.gradient,
+            flex: 1,
+            padding: "12px 14px",
             display: "flex",
             alignItems: "center",
-            justifyContent: "center",
-            fontSize: 14,
-            fontWeight: 800,
-            color: "#fff",
-            flexShrink: 0,
+            gap: 11,
+            textDecoration: "none",
+            minWidth: 0,
           }}
         >
-          {user.initials}
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 13.5, fontWeight: 800, color: "#16100f", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-            {user.name}
+          <div
+            style={{
+              width: 38,
+              height: 38,
+              borderRadius: "50%",
+              background: user.gradient,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 14,
+              fontWeight: 800,
+              color: "#fff",
+              flexShrink: 0,
+            }}
+          >
+            {user.initials}
           </div>
-          <div style={{ fontSize: 11.5, fontWeight: 600, color: "#8a807e", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-            {user.email}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13.5, fontWeight: 800, color: "#16100f", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {user.name || "…"}
+            </div>
+            <div style={{ fontSize: 11.5, fontWeight: 600, color: "#8a807e", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {user.email}
+            </div>
           </div>
-        </div>
-        <span
-          style={{
-            flexShrink: 0,
-            fontSize: 10,
-            fontWeight: 800,
-            letterSpacing: "0.04em",
-            textTransform: "uppercase",
-            color: role.color,
-            background: role.bg,
-            border: role.border,
-            padding: "3px 8px",
-            borderRadius: 100,
-          }}
-        >
-          {role.label}
-        </span>
-      </Link>
+          <span
+            style={{
+              flexShrink: 0,
+              fontSize: 10,
+              fontWeight: 800,
+              letterSpacing: "0.04em",
+              textTransform: "uppercase",
+              color: role.color,
+              background: role.bg,
+              border: role.border,
+              padding: "3px 8px",
+              borderRadius: 100,
+            }}
+          >
+            {role.label}
+          </span>
+        </Link>
+
+        {onLogout && (
+          <button
+            onClick={() => { onClose?.(); onLogout(); }}
+            title="Sair"
+            style={{
+              flexShrink: 0,
+              width: 42,
+              height: 42,
+              border: "none",
+              background: "transparent",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "#a89e9c",
+              marginRight: 6,
+              borderRadius: 9,
+              transition: "color .15s, background .15s",
+            }}
+            className="hover:text-[#CC1F1F] hover:bg-[#fceeee]"
+          >
+            <LogOut size={17} />
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -206,9 +235,10 @@ interface AppShellProps {
   role: RoleBadge;
   sectionLabel: string;
   children: ReactNode;
+  onLogout?: () => void;
 }
 
-export function AppShell({ navItems, user, role, sectionLabel, children }: AppShellProps) {
+export function AppShell({ navItems, user, role, sectionLabel, children, onLogout }: AppShellProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const pathname = usePathname();
 
@@ -216,7 +246,7 @@ export function AppShell({ navItems, user, role, sectionLabel, children }: AppSh
     <div style={{ display: "flex", minHeight: "100vh", background: "#f6f4f3" }}>
       {/* Desktop sidebar */}
       <div className="hidden lg:block sticky top-0 h-screen">
-        <SidebarContent navItems={navItems} user={user} role={role} sectionLabel={sectionLabel} pathname={pathname} />
+        <SidebarContent navItems={navItems} user={user} role={role} sectionLabel={sectionLabel} pathname={pathname} onLogout={onLogout} />
       </div>
 
       {/* Mobile drawer overlay */}
@@ -232,14 +262,14 @@ export function AppShell({ navItems, user, role, sectionLabel, children }: AppSh
           onClick={() => setDrawerOpen(false)}
         >
           <div onClick={(e) => e.stopPropagation()} style={{ width: 248, height: "100%" }}>
-            <SidebarContent navItems={navItems} user={user} role={role} sectionLabel={sectionLabel} pathname={pathname} onClose={() => setDrawerOpen(false)} />
+            <SidebarContent navItems={navItems} user={user} role={role} sectionLabel={sectionLabel} pathname={pathname} onClose={() => setDrawerOpen(false)} onLogout={onLogout} />
           </div>
         </div>
       )}
 
       {/* Main */}
       <main style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
-        {/* Global topbar — mobile + desktop */}
+        {/* Global topbar */}
         <div
           style={{
             background: "#fff",
@@ -252,7 +282,6 @@ export function AppShell({ navItems, user, role, sectionLabel, children }: AppSh
             zIndex: 20,
           }}
         >
-          {/* Mobile hamburger */}
           <button
             onClick={() => setDrawerOpen(true)}
             className="lg:hidden"
@@ -272,7 +301,6 @@ export function AppShell({ navItems, user, role, sectionLabel, children }: AppSh
           >
             <Menu size={20} />
           </button>
-          {/* Mobile logo */}
           <Link href="/" className="lg:hidden" style={{ display: "flex", alignItems: "center", gap: 9, textDecoration: "none" }}>
             <div style={{ width: 28, height: 28, borderRadius: 8, background: PRIMARY, display: "flex", alignItems: "center", justifyContent: "center" }}>
               <div style={{ width: 10, height: 10, border: "2.5px solid #fff", borderRadius: "50%", borderRightColor: "transparent", transform: "rotate(-45deg)" }} />
@@ -281,9 +309,7 @@ export function AppShell({ navItems, user, role, sectionLabel, children }: AppSh
               Maxi<span style={{ color: PRIMARY }}>Learn</span>
             </span>
           </Link>
-          {/* Spacer */}
           <div style={{ flex: 1 }} />
-          {/* Bell */}
           <NotificationsDropdown />
         </div>
 

@@ -2,7 +2,9 @@
 
 import { Fragment, useState } from "react";
 import Link from "next/link";
+import axios from "axios";
 import type { CSSProperties, Dispatch, SetStateAction } from "react";
+import { useAuth } from "@/hooks/use-auth";
 
 const PRIMARY = "#CC1F1F";
 
@@ -56,6 +58,31 @@ function maskPhone(v: string) {
   return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
 }
 
+function extractErrorMessage(err: unknown): string {
+  if (axios.isAxiosError(err)) {
+    const data = err.response?.data as { message?: string } | undefined;
+    if (typeof data?.message === "string") return data.message;
+  }
+  return "Erro ao criar conta. Tente novamente.";
+}
+
+function Spinner() {
+  return (
+    <svg
+      width="17"
+      height="17"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      style={{ animation: "spin 0.75s linear infinite" }}
+    >
+      <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+    </svg>
+  );
+}
+
 // ─── Stepper ─────────────────────────────────────────────────────────────────
 
 function StepperBar({ step }: { step: number }) {
@@ -96,13 +123,7 @@ function StepperBar({ step }: { step: number }) {
                 <path d="M20 6 9 17l-5-5" />
               </svg>
             ) : (
-              <span
-                style={{
-                  fontSize: 14,
-                  fontWeight: 800,
-                  color: step === i ? "#fff" : "#b3a6a6",
-                }}
-              >
+              <span style={{ fontSize: 14, fontWeight: 800, color: step === i ? "#fff" : "#b3a6a6" }}>
                 {i + 1}
               </span>
             )}
@@ -184,7 +205,6 @@ function Step1Form({
               ...inputBase,
               paddingRight: 40,
               borderColor: errors.segment ? PRIMARY : "#eadfdf",
-              background: data.segment ? "#faf7f7" : "#faf7f7",
               color: data.segment ? "#16100f" : "#9a9090",
               cursor: "pointer",
             }}
@@ -367,7 +387,6 @@ function Step3Plan({
 
   return (
     <div>
-      {/* Billing toggle */}
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
         <div
           style={{
@@ -402,7 +421,6 @@ function Step3Plan({
         </span>
       </div>
 
-      {/* Plan cards */}
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {plans.map(({ id, name, price, note, features, badge }) => {
           const selected = plan === id;
@@ -446,7 +464,6 @@ function Step3Plan({
                   <span style={{ fontSize: 14.5, fontWeight: 800, color: selected ? PRIMARY : "#16100f" }}>
                     {name}
                   </span>
-                  {/* Radio indicator */}
                   <div
                     style={{
                       width: 18,
@@ -490,11 +507,13 @@ function Step3Plan({
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function CadastroFlow() {
+  const { register } = useAuth();
   const [step, setStep] = useState<Step>(0);
   const [annual, setAnnual] = useState(false);
   const [plan, setPlan] = useState<Plan>("pro");
-  const [submitted, setSubmitted] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
 
   const [s1, setS1] = useState<Step1Data>({ companyName: "", cnpj: "", phone: "", segment: "" });
   const [s2, setS2] = useState<Step2Data>({ adminName: "", email: "", password: "", confirmPassword: "" });
@@ -510,12 +529,10 @@ export function CadastroFlow() {
 
   function validateStep(): boolean {
     const e: Record<string, string> = {};
-
     if (step === 0) {
       if (!s1.companyName.trim()) e.companyName = "Nome da empresa obrigatório";
       if (!s1.segment) e.segment = "Selecione o segmento";
     }
-
     if (step === 1) {
       if (!s2.adminName.trim()) e.adminName = "Nome obrigatório";
       if (!s2.email.trim()) e.email = "E-mail obrigatório";
@@ -525,94 +542,53 @@ export function CadastroFlow() {
       if (!s2.confirmPassword) e.confirmPassword = "Confirme a senha";
       else if (s2.password !== s2.confirmPassword) e.confirmPassword = "Senhas não coincidem";
     }
-
     setErrors(e);
     return Object.keys(e).length === 0;
   }
 
-  function handlePrimary() {
+  async function handlePrimary() {
     if (step < 2) {
       if (!validateStep()) return;
       setErrors({});
       setStep((s) => (s + 1) as Step);
-    } else {
-      // TODO: integrar com POST /auth/register e depois POST /auth/login na próxima etapa
-      console.log("Cadastro:", { s1, s2, plan, annual });
-      setSubmitted(true);
+      return;
+    }
+
+    // Enterprise plan: contact sales
+    if (plan === "ent") {
+      window.open("mailto:vendas@maxilearn.com.br?subject=Interesse%20no%20plano%20Enterprise");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setSubmitError("");
+    try {
+      await register({
+        companyName: s1.companyName,
+        companyCnpj: s1.cnpj || undefined,
+        adminName: s2.adminName,
+        adminEmail: s2.email,
+        adminPassword: s2.password,
+      });
+      // AuthContext handles redirect automatically
+    } catch (err) {
+      setSubmitError(extractErrorMessage(err));
+      setIsSubmitting(false);
     }
   }
 
-  if (submitted) {
-    return (
-      <div
-        className="min-h-screen flex flex-col items-center justify-center"
-        style={{ background: "#fdf9f9", padding: "40px 20px" }}
-      >
-        <div
-          style={{
-            width: 84,
-            height: 84,
-            borderRadius: "50%",
-            background: "#e8f5ee",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            marginBottom: 24,
-            animation: "ml-pop .4s ease",
-          }}
-        >
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#1f8a5b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-            <path d="M22 4 12 14.01l-3-3" />
-          </svg>
-        </div>
-        <h2
-          style={{
-            fontSize: 28,
-            fontWeight: 800,
-            letterSpacing: "-0.03em",
-            color: "#16100f",
-            textAlign: "center",
-            marginBottom: 10,
-          }}
-        >
-          Conta criada com sucesso!
-        </h2>
-        <p
-          style={{
-            fontSize: 15,
-            lineHeight: 1.6,
-            fontWeight: 500,
-            color: "#6a605e",
-            textAlign: "center",
-            maxWidth: 380,
-            marginBottom: 32,
-          }}
-        >
-          Sua empresa foi cadastrada. Assim que a integração estiver pronta, você receberá as instruções por e-mail.
-        </p>
-        <Link
-          href="/login"
-          style={{
-            fontSize: 15.5,
-            fontWeight: 800,
-            color: "#fff",
-            background: PRIMARY,
-            padding: "14px 36px",
-            borderRadius: 11,
-            textDecoration: "none",
-            boxShadow: "0 10px 24px rgba(204,31,31,0.26)",
-          }}
-          className="hover:opacity-90 transition-opacity"
-        >
-          Ir para o login
-        </Link>
-      </div>
-    );
-  }
+  const primaryLabel = step < 2
+    ? "Continuar"
+    : plan === "ent"
+    ? "Falar com time"
+    : isSubmitting
+    ? "Criando conta…"
+    : "Assinar agora";
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: "#fdf9f9" }}>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+
       {/* Progress bar */}
       <div style={{ height: 4, background: "#f0e6e6" }}>
         <div
@@ -658,7 +634,6 @@ export function CadastroFlow() {
             Maxi<span style={{ color: PRIMARY }}>Learn</span>
           </span>
         </Link>
-
         <p style={{ fontSize: 14, fontWeight: 600, color: "#6a605e" }}>
           Já tem conta?{" "}
           <Link href="/login" style={{ color: PRIMARY, fontWeight: 700, textDecoration: "none" }}>
@@ -678,10 +653,8 @@ export function CadastroFlow() {
         }}
       >
         <div style={{ width: "100%", maxWidth: 480 }}>
-          {/* Stepper */}
           <StepperBar step={step} />
 
-          {/* Step labels */}
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 28 }}>
             {stepLabels.map((label, i) => (
               <span
@@ -700,7 +673,6 @@ export function CadastroFlow() {
             ))}
           </div>
 
-          {/* Card */}
           <div
             style={{
               background: "#fff",
@@ -751,12 +723,21 @@ export function CadastroFlow() {
               <Step3Plan plan={plan} setPlan={setPlan} annual={annual} setAnnual={setAnnual} />
             )}
 
+            {/* API error on last step */}
+            {step === 2 && submitError && (
+              <div style={{ display: "flex", alignItems: "center", gap: 9, background: "#fceeee", border: "1px solid #f6d6d6", borderRadius: 10, padding: "11px 14px", marginTop: 16 }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#CC1F1F" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+                <p style={{ fontSize: 13.5, fontWeight: 600, color: "#CC1F1F", margin: 0 }}>{submitError}</p>
+              </div>
+            )}
+
             {/* Navigation */}
             <div style={{ display: "flex", gap: 12, marginTop: 28 }}>
               {step > 0 && (
                 <button
                   type="button"
-                  onClick={() => { setStep((s) => (s - 1) as Step); setErrors({}); }}
+                  onClick={() => { setStep((s) => (s - 1) as Step); setErrors({}); setSubmitError(""); }}
+                  disabled={isSubmitting}
                   style={{
                     flexShrink: 0,
                     fontFamily: "inherit",
@@ -767,7 +748,8 @@ export function CadastroFlow() {
                     border: "1.5px solid #e2d9d9",
                     borderRadius: 11,
                     padding: "14px 22px",
-                    cursor: "pointer",
+                    cursor: isSubmitting ? "not-allowed" : "pointer",
+                    opacity: isSubmitting ? 0.5 : 1,
                   }}
                   className="hover:bg-[#faf7f7] transition-colors"
                 >
@@ -777,8 +759,13 @@ export function CadastroFlow() {
               <button
                 type="button"
                 onClick={handlePrimary}
+                disabled={isSubmitting}
                 style={{
                   flex: 1,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 8,
                   fontFamily: "inherit",
                   fontSize: 15,
                   fontWeight: 800,
@@ -787,17 +774,18 @@ export function CadastroFlow() {
                   border: "none",
                   borderRadius: 11,
                   padding: 14,
-                  cursor: "pointer",
+                  cursor: isSubmitting ? "not-allowed" : "pointer",
                   boxShadow: "0 10px 24px rgba(204,31,31,0.26)",
+                  opacity: isSubmitting ? 0.8 : 1,
                 }}
                 className="hover:opacity-90 transition-opacity"
               >
-                {step < 2 ? "Continuar" : plan === "ent" ? "Falar com time" : "Assinar agora"}
+                {isSubmitting && <Spinner />}
+                {primaryLabel}
               </button>
             </div>
           </div>
 
-          {/* Legal */}
           <p
             style={{
               fontSize: 12.5,
@@ -809,14 +797,9 @@ export function CadastroFlow() {
             }}
           >
             Ao criar sua conta, você concorda com os{" "}
-            <a href="#" style={{ color: "#6a605e", fontWeight: 600 }}>
-              Termos de Uso
-            </a>{" "}
+            <a href="#" style={{ color: "#6a605e", fontWeight: 600 }}>Termos de Uso</a>{" "}
             e a{" "}
-            <a href="#" style={{ color: "#6a605e", fontWeight: 600 }}>
-              Política de Privacidade
-            </a>
-            .
+            <a href="#" style={{ color: "#6a605e", fontWeight: 600 }}>Política de Privacidade</a>.
           </p>
         </div>
       </div>

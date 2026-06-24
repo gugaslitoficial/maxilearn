@@ -3,7 +3,8 @@
 import type { ReactNode } from "react";
 import { LayoutDashboard, BookOpen, Compass, Award, User } from "lucide-react";
 import { AppShell } from "@/components/shared/AppShell";
-import type { NavItem, AppUser, RoleBadge } from "@/components/shared/AppShell";
+import type { NavItem } from "@/components/shared/AppShell";
+import { useAuth, deriveAppUser, deriveRoleBadge } from "@/lib/auth-context";
 
 const NAV: NavItem[] = [
   { key: "dashboard", label: "Dashboard", href: "/aluno/dashboard", Icon: LayoutDashboard },
@@ -13,14 +14,14 @@ const NAV: NavItem[] = [
   { key: "perfil", label: "Perfil", href: "/aluno/perfil", Icon: User },
 ];
 
-const USER: AppUser = {
-  initials: "AL",
+const LOADING_USER = {
+  initials: "…",
   gradient: "linear-gradient(135deg,#1f8a5b,#43b787)",
-  name: "Ana Lima",
-  email: "ana.lima@maxi1.com.br",
+  name: "",
+  email: "",
 };
 
-const ROLE: RoleBadge = {
+const LOADING_ROLE = {
   label: "Estudante",
   color: "#1f8a5b",
   bg: "#e8f5ee",
@@ -28,8 +29,13 @@ const ROLE: RoleBadge = {
 };
 
 export function AlunoShell({ children }: { children: ReactNode }) {
+  const { user, logout } = useAuth();
+
+  const appUser = user ? deriveAppUser(user) : LOADING_USER;
+  const role = user ? deriveRoleBadge(user.role) : LOADING_ROLE;
+
   return (
-    <AppShell navItems={NAV} user={USER} role={ROLE} sectionLabel="Estudante">
+    <AppShell navItems={NAV} user={appUser} role={role} sectionLabel="Estudante" onLogout={logout}>
       {children}
     </AppShell>
   );

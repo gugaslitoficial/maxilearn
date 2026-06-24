@@ -3,7 +3,8 @@
 import type { ReactNode } from "react";
 import { LayoutDashboard, Users, BookOpen, BarChart3, Tag, Layers, Settings } from "lucide-react";
 import { AppShell } from "@/components/shared/AppShell";
-import type { NavItem, AppUser, RoleBadge } from "@/components/shared/AppShell";
+import type { NavItem } from "@/components/shared/AppShell";
+import { useAuth, deriveAppUser, deriveRoleBadge } from "@/lib/auth-context";
 
 const NAV: NavItem[] = [
   { key: "dashboard", label: "Dashboard", href: "/dashboard", Icon: LayoutDashboard },
@@ -15,14 +16,14 @@ const NAV: NavItem[] = [
   { key: "configuracoes", label: "Configurações", href: "/configuracoes", Icon: Settings },
 ];
 
-const USER: AppUser = {
-  initials: "CM",
+const LOADING_USER = {
+  initials: "…",
   gradient: "linear-gradient(135deg,#CC1F1F,#e85a4f)",
-  name: "Carlos Mendes",
-  email: "carlos@maxi1.com.br",
+  name: "",
+  email: "",
 };
 
-const ROLE: RoleBadge = {
+const LOADING_ROLE = {
   label: "Admin",
   color: "#CC1F1F",
   bg: "#fceeee",
@@ -30,8 +31,13 @@ const ROLE: RoleBadge = {
 };
 
 export function AdminShell({ children }: { children: ReactNode }) {
+  const { user, logout } = useAuth();
+
+  const appUser = user ? deriveAppUser(user) : LOADING_USER;
+  const role = user ? deriveRoleBadge(user.role) : LOADING_ROLE;
+
   return (
-    <AppShell navItems={NAV} user={USER} role={ROLE} sectionLabel="Menu">
+    <AppShell navItems={NAV} user={appUser} role={role} sectionLabel="Menu" onLogout={logout}>
       {children}
     </AppShell>
   );
