@@ -5,6 +5,7 @@ import { LayoutDashboard, BookOpen, Compass, Award, User } from "lucide-react";
 import { AppShell } from "@/components/shared/AppShell";
 import type { NavItem } from "@/components/shared/AppShell";
 import { useAuth, deriveAppUser, deriveRoleBadge } from "@/lib/auth-context";
+import { useBranding } from "@/hooks/use-branding";
 
 const NAV: NavItem[] = [
   { key: "dashboard", label: "Dashboard", href: "/aluno/dashboard", Icon: LayoutDashboard },
@@ -30,6 +31,7 @@ const LOADING_ROLE = {
 
 export function AlunoShell({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
+  useBranding();
 
   const appUser = user ? deriveAppUser(user) : LOADING_USER;
   const role = user ? deriveRoleBadge(user.role) : LOADING_ROLE;
