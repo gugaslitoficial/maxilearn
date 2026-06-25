@@ -1,7 +1,12 @@
 import { cookies } from "next/headers";
 
 export async function POST(request: Request) {
-  const body = (await request.json()) as { token?: string };
+  let body: { token?: string };
+  try {
+    body = (await request.json()) as { token?: string };
+  } catch {
+    return Response.json({ error: "Invalid request body" }, { status: 400 });
+  }
   if (!body.token) {
     return Response.json({ error: "Token required" }, { status: 400 });
   }

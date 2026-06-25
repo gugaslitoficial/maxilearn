@@ -252,8 +252,7 @@ export function RecuperarSenhaForm() {
             <button
               type="button"
               onClick={() => {
-                // TODO: integrar com reenvio de e-mail de recuperação
-                console.log("Reenviar para:", email);
+                // reenvio de e-mail de recuperação (backend endpoint pendente)
               }}
               style={{
                 width: "100%",

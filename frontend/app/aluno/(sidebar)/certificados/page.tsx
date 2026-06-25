@@ -33,8 +33,40 @@ function CertCard({ cert, onToast }: { cert: Certificate; onToast: (msg: string)
     }).catch(() => onToast("Não foi possível copiar. Tente manualmente."));
   }
 
-  function handleDownload() {
-    window.print();
+  const [downloading, setDownloading] = useState(false);
+
+  async function handleDownload() {
+    if (downloading) return;
+    setDownloading(true);
+    try {
+      const [{ pdf }, { CertificatePDF }] = await Promise.all([
+        import("@react-pdf/renderer"),
+        import("@/components/aluno/CertificatePDF"),
+      ]);
+      const blob = await pdf(
+        CertificatePDF({
+          studentName: cert.studentName,
+          courseName: cert.courseName,
+          teacherName: cert.teacherName,
+          issuedAt: cert.issuedAt,
+          validationCode: cert.validationCode,
+          companyName: cert.company.platformName ?? cert.company.name,
+          courseDuration: cert.courseDuration,
+        })
+      ).toBlob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `certificado-${cert.courseName.toLowerCase().replace(/\s+/g, "-")}-${cert.studentName.split(" ")[0].toLowerCase()}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      onToast("Erro ao gerar PDF. Tente novamente.");
+    } finally {
+      setDownloading(false);
+    }
   }
 
   function handleLinkedIn() {
@@ -102,9 +134,9 @@ function CertCard({ cert, onToast }: { cert: Certificate; onToast: (msg: string)
 
       {/* Actions */}
       <div style={{ padding: 20, display: "flex", gap: 10, flexWrap: "wrap" }}>
-        <button onClick={handleDownload} type="button" style={{ display: "inline-flex", alignItems: "center", gap: 8, fontFamily: "inherit", fontSize: 13.5, fontWeight: 800, color: "#fff", background: PRIMARY, border: "none", borderRadius: 10, padding: "11px 16px", cursor: "pointer", boxShadow: "0 6px 16px rgba(204,31,31,0.26)" }}>
+        <button onClick={handleDownload} disabled={downloading} type="button" style={{ display: "inline-flex", alignItems: "center", gap: 8, fontFamily: "inherit", fontSize: 13.5, fontWeight: 800, color: "#fff", background: PRIMARY, border: "none", borderRadius: 10, padding: "11px 16px", cursor: downloading ? "wait" : "pointer", boxShadow: "0 6px 16px rgba(204,31,31,0.26)", opacity: downloading ? 0.75 : 1 }}>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><path d="M7 10l5 5 5-5" /><path d="M12 15V3" /></svg>
-          Download PDF
+          {downloading ? "Gerando PDF…" : "Download PDF"}
         </button>
         <button onClick={handleLinkedIn} type="button" style={{ display: "inline-flex", alignItems: "center", gap: 8, fontFamily: "inherit", fontSize: 13.5, fontWeight: 700, color: "#fff", background: "#0a66c2", border: "none", borderRadius: 10, padding: "11px 16px", cursor: "pointer" }}>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="#fff"><path d="M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2ZM9 17H6.5v-7H9v7Zm-1.25-8.1a1.4 1.4 0 1 1 0-2.8 1.4 1.4 0 0 1 0 2.8ZM18 17h-2.5v-3.7c0-.9-.3-1.5-1.1-1.5-.6 0-1 .4-1.1.8-.05.15-.06.36-.06.57V17H9.8s.03-6.3 0-7h2.5v1c.33-.5.92-1.2 2.25-1.2 1.64 0 2.95 1.07 2.95 3.38V17Z" /></svg>

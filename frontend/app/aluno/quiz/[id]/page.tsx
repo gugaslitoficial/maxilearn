@@ -203,7 +203,7 @@ export default function QuizPage() {
                       key={opt.id}
                       onClick={() => setAnswers((a) => ({ ...a, [questions[currentQ].id]: opt.id }))}
                       type="button"
-                      style={{ display: "flex", alignItems: "center", gap: 14, width: "100%", padding: "16px 18px", background: isSelected ? "#fceeee" : "#fff", border: `1.5px solid ${isSelected ? PRIMARY : "#e6dede"}`, borderRadius: 13, cursor: "pointer", transition: "all .15s", fontFamily: "inherit", textAlign: "left" }}
+                      style={{ display: "flex", alignItems: "center", gap: 14, width: "100%", minHeight: 48, padding: "16px 18px", background: isSelected ? "#fceeee" : "#fff", border: `1.5px solid ${isSelected ? PRIMARY : "#e6dede"}`, borderRadius: 13, cursor: "pointer", transition: "all .15s", fontFamily: "inherit", textAlign: "left" }}
                     >
                       <span style={{ width: 30, height: 30, borderRadius: 8, flexShrink: 0, background: isSelected ? PRIMARY : "#f1ecec", color: isSelected ? "#fff" : "#8a807e", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800 }}>
                         {String.fromCharCode(65 + i)}

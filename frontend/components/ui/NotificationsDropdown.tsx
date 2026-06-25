@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { MOCK_NOTIFICATIONS, type MockNotification, type NotifType } from "@/lib/mock-data";
+import { useNotifications } from "@/hooks/use-notifications";
+import type { NotifType } from "@/hooks/use-notifications";
 
 const PRIMARY = "#CC1F1F";
 
@@ -26,12 +27,10 @@ function NotifIcon({ type, size = 19 }: { type: NotifType; size?: number }) {
 
 export function NotificationsDropdown() {
   const [open, setOpen] = useState(false);
-  const [readIds, setReadIds] = useState<Record<number, boolean>>({});
   const ref = useRef<HTMLDivElement>(null);
+  const { notifications, unreadCount, isUnread, markAsRead } = useNotifications();
 
-  const isUnread = (n: MockNotification) => readIds[n.id] ? false : !n.readDefault;
-  const unread = MOCK_NOTIFICATIONS.filter(isUnread).length;
-  const latest = MOCK_NOTIFICATIONS.slice(0, 5);
+  const latest = notifications.slice(0, 5);
 
   useEffect(() => {
     if (!open) return;
@@ -42,12 +41,19 @@ export function NotificationsDropdown() {
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
 
+  function handleOpen() {
+    setOpen((v) => !v);
+    latest.forEach((n) => {
+      if (isUnread(n.id)) markAsRead(n.id);
+    });
+  }
+
   return (
     <div ref={ref} style={{ position: "relative" }}>
       <style>{`@keyframes ml-dropin{from{transform:translateY(-8px);opacity:0}to{transform:translateY(0);opacity:1}}`}</style>
 
       <button
-        onClick={() => setOpen(v => !v)}
+        onClick={handleOpen}
         type="button"
         aria-label="Notificações"
         style={{
@@ -68,7 +74,7 @@ export function NotificationsDropdown() {
           <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
           <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
         </svg>
-        {unread > 0 && (
+        {unreadCount > 0 && (
           <span
             style={{
               position: "absolute",
@@ -89,7 +95,7 @@ export function NotificationsDropdown() {
               fontFamily: "Manrope, system-ui, sans-serif",
             }}
           >
-            {unread}
+            {unreadCount}
           </span>
         )}
       </button>
@@ -112,53 +118,59 @@ export function NotificationsDropdown() {
         >
           <div style={{ padding: "16px 18px", borderBottom: "1px solid #f4eded", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <span style={{ fontSize: 15, fontWeight: 800, color: "#16100f" }}>Notificações</span>
-            {unread > 0 && (
+            {unreadCount > 0 && (
               <span style={{ fontSize: 11.5, fontWeight: 800, color: PRIMARY, background: "#fceeee", padding: "3px 9px", borderRadius: 100 }}>
-                {unread} novas
+                {unreadCount} novas
               </span>
             )}
           </div>
 
           <div style={{ maxHeight: 340, overflowY: "auto" }}>
-            {latest.map((n) => {
-              const t = TYPES[n.type];
-              const unreadItem = isUnread(n);
-              return (
-                <div
-                  key={n.id}
-                  style={{
-                    display: "flex",
-                    gap: 12,
-                    alignItems: "flex-start",
-                    padding: "13px 18px",
-                    borderBottom: "1px solid #f6f1f1",
-                    background: unreadItem ? "#fdf9f9" : "#fff",
-                  }}
-                >
+            {latest.length === 0 ? (
+              <div style={{ padding: "28px 18px", textAlign: "center", fontSize: 13.5, fontWeight: 600, color: "#a89e9c" }}>
+                Nenhuma notificação.
+              </div>
+            ) : (
+              latest.map((n) => {
+                const t = TYPES[n.type];
+                const unreadItem = isUnread(n.id);
+                return (
                   <div
+                    key={n.id}
                     style={{
-                      width: 34,
-                      height: 34,
-                      borderRadius: 9,
-                      flexShrink: 0,
-                      background: t.bg,
                       display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
+                      gap: 12,
+                      alignItems: "flex-start",
+                      padding: "13px 18px",
+                      borderBottom: "1px solid #f6f1f1",
+                      background: unreadItem ? "#fdf9f9" : "#fff",
                     }}
                   >
-                    <NotifIcon type={n.type} size={16} />
+                    <div
+                      style={{
+                        width: 34,
+                        height: 34,
+                        borderRadius: 9,
+                        flexShrink: 0,
+                        background: t.bg,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <NotifIcon type={n.type} size={16} />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, lineHeight: 1.4, fontWeight: 600, color: "#3a3030" }}>{n.text}</div>
+                      <div style={{ fontSize: 11.5, fontWeight: 600, color: "#a89e9c", marginTop: 2 }}>{n.time}</div>
+                    </div>
+                    {unreadItem && (
+                      <span style={{ width: 8, height: 8, borderRadius: "50%", background: PRIMARY, flexShrink: 0, marginTop: 5 }} />
+                    )}
                   </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, lineHeight: 1.4, fontWeight: 600, color: "#3a3030" }}>{n.text}</div>
-                    <div style={{ fontSize: 11.5, fontWeight: 600, color: "#a89e9c", marginTop: 2 }}>{n.time}</div>
-                  </div>
-                  {unreadItem && (
-                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: PRIMARY, flexShrink: 0, marginTop: 5 }} />
-                  )}
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
 
           <div style={{ padding: "12px 18px", borderTop: "1px solid #f4eded" }}>

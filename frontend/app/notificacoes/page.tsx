@@ -1,9 +1,9 @@
 "use client";
 
-// TODO: integrar com GET /notifications e PATCH /notifications/read-all
 import { useState } from "react";
 import Link from "next/link";
-import { MOCK_NOTIFICATIONS, type MockNotification, type NotifType } from "@/lib/mock-data";
+import { useNotifications } from "@/hooks/use-notifications";
+import type { NotifType } from "@/hooks/use-notifications";
 
 const PRIMARY = "#CC1F1F";
 
@@ -19,28 +19,14 @@ const TYPES: Record<NotifType, { color: string; bg: string; label: string; paths
 type FilterKey = "todas" | "naolidas";
 
 export default function NotificacoesPage() {
-  const [readIds, setReadIds] = useState<Record<number, boolean>>({});
+  const { notifications, unreadCount, isUnread, markAllAsRead, isLoading } = useNotifications();
   const [filter, setFilter] = useState<FilterKey>("todas");
 
-  const isUnread = (n: MockNotification) => readIds[n.id] ? false : !n.readDefault;
-  const unreadCount = MOCK_NOTIFICATIONS.filter(isUnread).length;
-
   const filtered = filter === "naolidas"
-    ? MOCK_NOTIFICATIONS.filter(isUnread)
-    : MOCK_NOTIFICATIONS;
+    ? notifications.filter((n) => isUnread(n.id))
+    : notifications;
 
-  const groups = (["Hoje", "Ontem", "Esta semana"] as const).map(label => ({
-    label,
-    items: filtered.filter(n => n.group === label),
-  })).filter(g => g.items.length > 0);
-
-  const isEmpty = groups.length === 0;
-
-  function markAll() {
-    const m: Record<number, boolean> = {};
-    MOCK_NOTIFICATIONS.forEach(n => { m[n.id] = true; });
-    setReadIds(m);
-  }
+  const isEmpty = filtered.length === 0;
 
   const FILTER_OPTS: { key: FilterKey; label: string }[] = [
     { key: "todas",    label: "Todas" },
@@ -64,12 +50,12 @@ export default function NotificacoesPage() {
                 <h1 style={{ fontSize: 26, fontWeight: 800, letterSpacing: "-0.02em", color: "#16100f" }}>Notificações</h1>
               </div>
               <p style={{ fontSize: 14, fontWeight: 600, color: "#8a807e", paddingLeft: 42 }}>
-                {unreadCount} não lidas de {MOCK_NOTIFICATIONS.length}
+                {isLoading ? "Carregando..." : `${unreadCount} não lida${unreadCount !== 1 ? "s" : ""} de ${notifications.length}`}
               </p>
             </div>
             {unreadCount > 0 && (
               <button
-                onClick={markAll}
+                onClick={markAllAsRead}
                 type="button"
                 style={{ display: "inline-flex", alignItems: "center", gap: 8, fontFamily: "inherit", fontSize: 13.5, fontWeight: 700, color: "#16100f", background: "#fff", border: "1.5px solid #e2d9d9", borderRadius: 10, padding: "10px 16px", cursor: "pointer" }}
               >
@@ -114,55 +100,55 @@ export default function NotificacoesPage() {
             </select>
           </div>
 
-          {/* List */}
-          {!isEmpty ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-              {groups.map(g => (
-                <div key={g.label}>
-                  <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: "0.05em", textTransform: "uppercase", color: "#a89e9c", marginBottom: 11, paddingLeft: 2 }}>
-                    {g.label}
-                  </div>
-                  <div style={{ background: "#fff", border: "1px solid #ece4e4", borderRadius: 16, overflow: "hidden" }}>
-                    {g.items.map((n, idx) => {
-                      const t = TYPES[n.type];
-                      const unread = isUnread(n);
-                      return (
-                        <div
-                          key={n.id}
-                          style={{
-                            display: "flex",
-                            gap: 14,
-                            alignItems: "flex-start",
-                            padding: "16px 18px",
-                            borderBottom: idx < g.items.length - 1 ? "1px solid #f6f1f1" : "none",
-                            background: unread ? "#fdfaf9" : "#fff",
-                          }}
-                        >
-                          <div style={{ width: 40, height: 40, borderRadius: 11, flexShrink: 0, background: t.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke={t.color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              {t.paths.map((d, i) => <path key={i} d={d} />)}
-                            </svg>
-                          </div>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontSize: 14, lineHeight: 1.45, fontWeight: unread ? 700 : 500, color: "#16100f" }}>{n.text}</div>
-                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
-                              <span style={{ display: "inline-flex", alignItems: "center", fontSize: 10.5, fontWeight: 800, letterSpacing: "0.02em", color: t.color, background: t.bg, padding: "2px 8px", borderRadius: 100 }}>
-                                {t.label}
-                              </span>
-                              <span style={{ fontSize: 12, fontWeight: 600, color: "#a89e9c" }}>{n.time}</span>
-                            </div>
-                          </div>
-                          {unread && (
-                            <span style={{ width: 9, height: 9, borderRadius: "50%", background: PRIMARY, flexShrink: 0, marginTop: 6 }} />
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
+          {/* Loading */}
+          {isLoading && (
+            <div style={{ textAlign: "center", padding: "48px 0", fontSize: 14, fontWeight: 600, color: "#a89e9c" }}>
+              Carregando notificações…
             </div>
-          ) : (
+          )}
+
+          {/* List */}
+          {!isLoading && !isEmpty && (
+            <div style={{ background: "#fff", border: "1px solid #ece4e4", borderRadius: 16, overflow: "hidden" }}>
+              {filtered.map((n, idx) => {
+                const t = TYPES[n.type];
+                const unread = isUnread(n.id);
+                return (
+                  <div
+                    key={n.id}
+                    style={{
+                      display: "flex",
+                      gap: 14,
+                      alignItems: "flex-start",
+                      padding: "16px 18px",
+                      borderBottom: idx < filtered.length - 1 ? "1px solid #f6f1f1" : "none",
+                      background: unread ? "#fdfaf9" : "#fff",
+                    }}
+                  >
+                    <div style={{ width: 40, height: 40, borderRadius: 11, flexShrink: 0, background: t.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke={t.color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        {t.paths.map((d, i) => <path key={i} d={d} />)}
+                      </svg>
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 14, lineHeight: 1.45, fontWeight: unread ? 700 : 500, color: "#16100f" }}>{n.text}</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
+                        <span style={{ display: "inline-flex", alignItems: "center", fontSize: 10.5, fontWeight: 800, letterSpacing: "0.02em", color: t.color, background: t.bg, padding: "2px 8px", borderRadius: 100 }}>
+                          {t.label}
+                        </span>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: "#a89e9c" }}>{n.time}</span>
+                      </div>
+                    </div>
+                    {unread && (
+                      <span style={{ width: 9, height: 9, borderRadius: "50%", background: PRIMARY, flexShrink: 0, marginTop: 6 }} />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {!isLoading && isEmpty && (
             <div style={{ background: "#fff", border: "1px solid #ece4e4", borderRadius: 18, padding: "64px 32px", textAlign: "center" }}>
               <div style={{ width: 88, height: 88, borderRadius: "50%", background: "#e8f5ee", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 22px" }}>
                 <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="#1f8a5b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -172,7 +158,7 @@ export default function NotificacoesPage() {
               </div>
               <h2 style={{ fontSize: 21, fontWeight: 800, letterSpacing: "-0.02em", color: "#16100f" }}>Você está em dia com tudo!</h2>
               <p style={{ fontSize: 14.5, lineHeight: 1.55, fontWeight: 500, color: "#8a807e", marginTop: 8, maxWidth: 340, marginLeft: "auto", marginRight: "auto" }}>
-                Nenhuma notificação não lida por aqui. Avisaremos quando algo novo acontecer.
+                {filter === "naolidas" ? "Nenhuma notificação não lida." : "Nenhuma notificação por aqui."}
               </p>
             </div>
           )}

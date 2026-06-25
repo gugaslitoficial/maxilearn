@@ -1,13 +1,13 @@
 "use client";
 
-// TODO: integrar com GET /users/me, PATCH /users/me, PATCH /users/me/password
-import { useState, useRef, type ChangeEvent } from "react";
+import { useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/use-auth";
+import { api } from "@/lib/api";
 import { Toast } from "@/components/ui/Toast";
 
 const PRIMARY = "#CC1F1F";
 type Tab = "dados" | "seg" | "pref" | "assin";
-
-const MOCK_ROLE = "admin"; // change to "professor" | "estudante" to test conditionals
 
 const INPUT_STYLE: React.CSSProperties = {
   width: "100%",
@@ -26,6 +26,14 @@ const LABEL_STYLE: React.CSSProperties = { display: "block", fontSize: 13, fontW
 const FOOTER_STYLE: React.CSSProperties = { padding: "18px 26px", borderTop: "1px solid #f4eded", background: "#fcfafa", display: "flex", gap: 12, justifyContent: "flex-end" };
 const CANCEL_BTN: React.CSSProperties = { fontFamily: "inherit", fontSize: 14.5, fontWeight: 700, color: "#16100f", background: "#fff", border: "1.5px solid #e2d9d9", borderRadius: 11, padding: "12px 20px", cursor: "pointer" };
 const SAVE_BTN: React.CSSProperties = { fontFamily: "inherit", fontSize: 14.5, fontWeight: 800, color: "#fff", background: PRIMARY, border: "none", borderRadius: 11, padding: "12px 22px", cursor: "pointer", boxShadow: "0 8px 20px rgba(204,31,31,0.26)" };
+
+interface ProfileData {
+  name: string;
+  email: string;
+  avatarUrl: string | null;
+  jobTitle?: string | null;
+  bio?: string | null;
+}
 
 function Switch({ on, toggle }: { on: boolean; toggle: () => void }) {
   return (
@@ -68,25 +76,85 @@ const PAYMENTS = [
 ];
 
 export default function PerfilPage() {
+  const { user } = useAuth();
+  const qc = useQueryClient();
+
   const [tab, setTab] = useState<Tab>("dados");
-  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [twofa, setTwofa] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [prefNovo, setPrefNovo] = useState(true);
   const [prefConcl, setPrefConcl] = useState(true);
   const [prefResumo, setPrefResumo] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
 
-  function handlePhoto(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setPhotoUrl(URL.createObjectURL(file));
+  // Form state — personal data
+  const [name, setName] = useState("");
+  const [jobTitle, setJobTitle] = useState("");
+  const [bio, setBio] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
+
+  // Form state — password
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
+  const profileQ = useQuery<ProfileData>({
+    queryKey: ["profile-me"],
+    queryFn: async () => {
+      const { data } = await api.get<ProfileData>("/users/me");
+      return data;
+    },
+    staleTime: 30_000,
+    retry: 1,
+  });
+
+  useEffect(() => {
+    if (profileQ.data) {
+      setName(profileQ.data.name ?? "");
+      setJobTitle(profileQ.data.jobTitle ?? "");
+      setBio(profileQ.data.bio ?? "");
+      setAvatarUrl(profileQ.data.avatarUrl ?? "");
+    }
+  }, [profileQ.data]);
+
+  const updateProfile = useMutation({
+    mutationFn: (payload: { name: string; jobTitle: string; bio: string; avatarUrl: string }) =>
+      api.patch("/users/me", payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["profile-me"] });
+      qc.invalidateQueries({ queryKey: ["me"] });
+      setToast("Alterações salvas com sucesso!");
+    },
+    onError: () => setToast("Erro ao salvar. Tente novamente."),
+  });
+
+  const updatePassword = useMutation({
+    mutationFn: (payload: { currentPassword: string; newPassword: string }) =>
+      api.patch("/users/me/password", payload),
+    onSuccess: () => {
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setToast("Senha atualizada com sucesso!");
+    },
+    onError: () => setToast("Erro ao atualizar senha. Verifique a senha atual."),
+  });
+
+  function handleSaveProfile() {
+    updateProfile.mutate({ name, jobTitle, bio, avatarUrl });
   }
 
-  function save() {
-    setToast("Alterações salvas com sucesso!");
+  function handleSavePassword() {
+    if (!currentPassword || !newPassword) return;
+    if (newPassword !== confirmPassword) {
+      setToast("As senhas não coincidem.");
+      return;
+    }
+    updatePassword.mutate({ currentPassword, newPassword });
   }
+
+  const role = user?.role ?? "ADMIN";
+  const initials = name.trim().split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase() || "??";
 
   const tabStyle = (k: Tab): React.CSSProperties => tab === k
     ? { fontFamily: "inherit", fontSize: 14, fontWeight: 800, padding: "11px 16px", border: "none", background: "transparent", cursor: "pointer", borderBottom: `2.5px solid ${PRIMARY}`, color: PRIMARY }
@@ -96,7 +164,6 @@ export default function PerfilPage() {
     <div style={{ fontFamily: "Manrope, system-ui, sans-serif", color: "#16100f", background: "#f6f4f3", minHeight: "100vh" }}>
       <style>{`
         @media(max-width:600px){.perfil-tabs{overflow-x:auto; white-space:nowrap;} .perfil-grid2{grid-template-columns:1fr!important;}}
-        input[type=file]{display:none;}
       `}</style>
       <Toast message={toast} onDismiss={() => setToast(null)} />
 
@@ -108,7 +175,7 @@ export default function PerfilPage() {
           <button onClick={() => setTab("dados")} style={tabStyle("dados")}>Dados pessoais</button>
           <button onClick={() => setTab("seg")}   style={tabStyle("seg")}>Segurança</button>
           <button onClick={() => setTab("pref")}  style={tabStyle("pref")}>Preferências</button>
-          {MOCK_ROLE === "admin" && (
+          {role === "ADMIN" && (
             <button onClick={() => setTab("assin")} style={tabStyle("assin")}>Assinatura</button>
           )}
         </div>
@@ -128,48 +195,46 @@ export default function PerfilPage() {
                 {/* Avatar */}
                 <div style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
                   <div style={{ flexShrink: 0 }}>
-                    {photoUrl ? (
-                      <img src={photoUrl} alt="avatar" style={{ width: 84, height: 84, borderRadius: "50%", objectFit: "cover" }} />
+                    {avatarUrl ? (
+                      <img src={avatarUrl} alt="avatar" style={{ width: 84, height: 84, borderRadius: "50%", objectFit: "cover" }} />
                     ) : (
                       <div style={{ width: 84, height: 84, borderRadius: "50%", background: "linear-gradient(135deg,#CC1F1F,#e85a4f)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30, fontWeight: 800, color: "#fff" }}>
-                        CM
+                        {initials}
                       </div>
                     )}
                   </div>
                   <div style={{ flex: 1, minWidth: 200 }}>
                     <div style={{ fontSize: 15, fontWeight: 800, color: "#16100f" }}>Foto de perfil</div>
-                    <div style={{ fontSize: 12.5, fontWeight: 500, color: "#8a807e", marginTop: 2, marginBottom: 12 }}>JPG ou PNG · máximo 2 MB.</div>
-                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                      <button
-                        onClick={() => fileRef.current?.click()}
-                        type="button"
-                        style={{ display: "inline-flex", alignItems: "center", gap: 7, fontFamily: "inherit", fontSize: 13, fontWeight: 700, color: "#16100f", background: "#fff", border: "1.5px solid #e2d9d9", borderRadius: 9, padding: "9px 14px", cursor: "pointer" }}
-                      >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6a605e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>
-                        Enviar foto
-                      </button>
-                      <input ref={fileRef} type="file" accept="image/jpeg,image/png" onChange={handlePhoto} />
-                      {photoUrl && (
-                        <button
-                          onClick={() => setPhotoUrl(null)}
-                          type="button"
-                          style={{ display: "inline-flex", alignItems: "center", gap: 7, fontFamily: "inherit", fontSize: 13, fontWeight: 700, color: PRIMARY, background: "#fff", border: "1.5px solid #f3c4c4", borderRadius: 9, padding: "9px 14px", cursor: "pointer" }}
-                        >
-                          Remover
-                        </button>
-                      )}
-                    </div>
+                    <div style={{ fontSize: 12.5, fontWeight: 500, color: "#8a807e", marginTop: 2, marginBottom: 10 }}>Cole uma URL de imagem (JPG ou PNG).</div>
+                    <input
+                      type="url"
+                      value={avatarUrl}
+                      onChange={(e) => setAvatarUrl(e.target.value)}
+                      placeholder="https://exemplo.com/foto.jpg"
+                      style={{ ...INPUT_STYLE, fontSize: 13 }}
+                    />
                   </div>
                 </div>
 
                 <div className="perfil-grid2" style={{ borderTop: "1px solid #f4eded", paddingTop: 22, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
                   <div>
                     <label style={LABEL_STYLE}>Nome completo</label>
-                    <input type="text" defaultValue="Carlos Mendes" style={INPUT_STYLE} />
+                    <input
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      style={INPUT_STYLE}
+                    />
                   </div>
                   <div>
                     <label style={LABEL_STYLE}>Cargo / função</label>
-                    <input type="text" defaultValue="Administrador de RH" style={INPUT_STYLE} />
+                    <input
+                      type="text"
+                      value={jobTitle}
+                      onChange={(e) => setJobTitle(e.target.value)}
+                      placeholder="Ex: Gerente de RH"
+                      style={INPUT_STYLE}
+                    />
                   </div>
                   <div style={{ gridColumn: "1 / -1" }}>
                     <label style={LABEL_STYLE}>
@@ -179,7 +244,7 @@ export default function PerfilPage() {
                     <div style={{ position: "relative" }}>
                       <input
                         type="email"
-                        defaultValue="carlos@maxi1.com.br"
+                        value={user?.email ?? ""}
                         readOnly
                         style={{ ...INPUT_STYLE, background: "#f1ecec", color: "#8a807e", cursor: "not-allowed", paddingRight: 42 }}
                       />
@@ -191,20 +256,28 @@ export default function PerfilPage() {
                   <div style={{ gridColumn: "1 / -1" }}>
                     <label style={LABEL_STYLE}>
                       Bio{" "}
-                      <span style={{ fontWeight: 600, color: "#a89e9c" }}>(exibida para professores)</span>
+                      <span style={{ fontWeight: 600, color: "#a89e9c" }}>(opcional)</span>
                     </label>
                     <textarea
                       rows={3}
                       placeholder="Conte um pouco sobre você…"
-                      defaultValue="Responsável pelos treinamentos corporativos da Maxi 1 Lubrificantes."
+                      value={bio}
+                      onChange={(e) => setBio(e.target.value)}
                       style={{ ...INPUT_STYLE, resize: "vertical" }}
                     />
                   </div>
                 </div>
               </div>
               <div style={FOOTER_STYLE}>
-                <button type="button" style={CANCEL_BTN}>Cancelar</button>
-                <button onClick={save} type="button" style={SAVE_BTN}>Salvar alterações</button>
+                <button type="button" style={CANCEL_BTN} onClick={() => profileQ.refetch()}>Cancelar</button>
+                <button
+                  onClick={handleSaveProfile}
+                  disabled={updateProfile.isPending}
+                  type="button"
+                  style={{ ...SAVE_BTN, opacity: updateProfile.isPending ? 0.7 : 1 }}
+                >
+                  {updateProfile.isPending ? "Salvando…" : "Salvar alterações"}
+                </button>
               </div>
             </div>
           )}
@@ -219,16 +292,34 @@ export default function PerfilPage() {
                 <div style={{ padding: 26, display: "flex", flexDirection: "column", gap: 16 }}>
                   <div>
                     <label style={LABEL_STYLE}>Senha atual</label>
-                    <input type="password" placeholder="••••••••" style={INPUT_STYLE} />
+                    <input
+                      type="password"
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      placeholder="••••••••"
+                      style={INPUT_STYLE}
+                    />
                   </div>
                   <div className="perfil-grid2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
                     <div>
                       <label style={LABEL_STYLE}>Nova senha</label>
-                      <input type="password" placeholder="••••••••" style={INPUT_STYLE} />
+                      <input
+                        type="password"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="••••••••"
+                        style={INPUT_STYLE}
+                      />
                     </div>
                     <div>
                       <label style={LABEL_STYLE}>Confirmar nova senha</label>
-                      <input type="password" placeholder="••••••••" style={INPUT_STYLE} />
+                      <input
+                        type="password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="••••••••"
+                        style={INPUT_STYLE}
+                      />
                     </div>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 9, background: "#faf7f7", border: "1px solid #eadfdf", borderRadius: 10, padding: "11px 14px" }}>
@@ -237,7 +328,14 @@ export default function PerfilPage() {
                   </div>
                 </div>
                 <div style={FOOTER_STYLE}>
-                  <button onClick={save} type="button" style={SAVE_BTN}>Atualizar senha</button>
+                  <button
+                    onClick={handleSavePassword}
+                    disabled={updatePassword.isPending || !currentPassword || !newPassword}
+                    type="button"
+                    style={{ ...SAVE_BTN, opacity: updatePassword.isPending ? 0.7 : 1 }}
+                  >
+                    {updatePassword.isPending ? "Atualizando…" : "Atualizar senha"}
+                  </button>
                 </div>
               </div>
               <div style={{ background: "#fff", border: "1px solid #ece4e4", borderRadius: 16, padding: "22px 26px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
@@ -314,13 +412,13 @@ export default function PerfilPage() {
               </div>
               <div style={FOOTER_STYLE}>
                 <button type="button" style={CANCEL_BTN}>Cancelar</button>
-                <button onClick={save} type="button" style={SAVE_BTN}>Salvar alterações</button>
+                <button onClick={() => setToast("Preferências salvas!")} type="button" style={SAVE_BTN}>Salvar alterações</button>
               </div>
             </div>
           )}
 
           {/* TAB: ASSINATURA (Admin only) */}
-          {tab === "assin" && MOCK_ROLE === "admin" && (
+          {tab === "assin" && role === "ADMIN" && (
             <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
               {/* Plan card */}
               <div style={{ position: "relative", background: "linear-gradient(135deg,#CC1F1F,#a3160f)", borderRadius: 16, padding: 26, overflow: "hidden", boxShadow: "0 16px 40px rgba(204,31,31,0.22)" }}>
