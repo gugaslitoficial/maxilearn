@@ -18,6 +18,19 @@ function Skeleton({ w, h, radius = 8 }: { w: string | number; h: number; radius?
   );
 }
 
+function extractYouTubeId(url: string): string | null {
+  try {
+    const u = new URL(url);
+    if (u.hostname === "youtu.be") return u.pathname.slice(1).split("?")[0];
+    if (u.hostname.includes("youtube.com")) {
+      if (u.searchParams.get("v")) return u.searchParams.get("v");
+      const embed = u.pathname.match(/\/embed\/([^/?]+)/);
+      if (embed) return embed[1];
+    }
+  } catch {}
+  return null;
+}
+
 export default function PlayerAulaPage() {
   const { id: courseId, lessonId } = useParams<{ id: string; lessonId: string }>();
   const router = useRouter();
@@ -115,18 +128,66 @@ export default function PlayerAulaPage() {
         {/* MAIN */}
         <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", overflowY: "auto" }}>
 
-          {/* VIDEO placeholder */}
+          {/* Lesson content — type-aware */}
           <div style={{ background: "#000", display: "flex", alignItems: "center", justifyContent: "center", padding: "clamp(12px,2vw,28px)" }}>
-            <div style={{ width: "100%", maxWidth: 1100, aspectRatio: "16 / 9", background: "linear-gradient(135deg,#1a1414,#2a2020)", borderRadius: 12, position: "relative", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at center, rgba(204,31,31,0.16), transparent 65%)" }} />
-              <div style={{ position: "relative", textAlign: "center" }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.5)", marginBottom: 8 }}>Player de vídeo</div>
-                <div style={{ fontSize: 15, fontWeight: 800, color: "rgba(255,255,255,0.7)" }}>{currentLesson?.title}</div>
-                {currentLesson?.durationMinutes && (
-                  <div style={{ fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,0.4)", marginTop: 6 }}>{currentLesson.durationMinutes} minutos</div>
+            {currentLesson?.type === "video" || !currentLesson?.type ? (() => {
+              const ytId = currentLesson?.videoUrl ? extractYouTubeId(currentLesson.videoUrl) : null;
+              if (ytId) return (
+                <div style={{ width: "100%", maxWidth: 1100, aspectRatio: "16 / 9", borderRadius: 12, overflow: "hidden" }}>
+                  <iframe
+                    src={`https://www.youtube.com/embed/${ytId}`}
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                    style={{ width: "100%", height: "100%", border: "none", display: "block" }}
+                  />
+                </div>
+              );
+              if (currentLesson?.videoUrl) return (
+                <div style={{ width: "100%", maxWidth: 1100, aspectRatio: "16 / 9", borderRadius: 12, overflow: "hidden", background: "#000" }}>
+                  <video src={currentLesson.videoUrl} controls style={{ width: "100%", height: "100%", display: "block" }} />
+                </div>
+              );
+              return (
+                <div style={{ width: "100%", maxWidth: 1100, aspectRatio: "16 / 9", background: "linear-gradient(135deg,#1a1414,#2a2020)", borderRadius: 12, position: "relative", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at center, rgba(204,31,31,0.16), transparent 65%)" }} />
+                  <div style={{ position: "relative", textAlign: "center" }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.5)", marginBottom: 8 }}>Vídeo não configurado</div>
+                    <div style={{ fontSize: 15, fontWeight: 800, color: "rgba(255,255,255,0.7)" }}>{currentLesson?.title}</div>
+                  </div>
+                </div>
+              );
+            })() : currentLesson?.type === "quiz" ? (
+              <div style={{ width: "100%", maxWidth: 1100, minHeight: 260, background: "#111827", border: "1px solid #1e2a3a", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 18, padding: 40 }}>
+                <div style={{ width: 68, height: 68, borderRadius: 18, background: "#1e2a3a", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#6b8fd4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                </div>
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.06em", textTransform: "uppercase", color: "#6b8fd4", marginBottom: 10 }}>Quiz</div>
+                  <div style={{ fontSize: 22, fontWeight: 800, color: "#fff" }}>{currentLesson?.quiz?.title ?? currentLesson?.title}</div>
+                  <div style={{ fontSize: 13.5, fontWeight: 600, color: "#6a7a9a", marginTop: 8 }}>Quiz disponível nesta aula</div>
+                </div>
+              </div>
+            ) : (
+              <div style={{ width: "100%", maxWidth: 1100, background: "#161212", border: "1px solid #2a2424", borderRadius: 12, padding: "28px 32px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8a807e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+                  <span style={{ fontSize: 12, fontWeight: 800, letterSpacing: "0.05em", textTransform: "uppercase", color: "#8a807e" }}>Materiais</span>
+                </div>
+                {(!currentLesson?.materials || currentLesson.materials.length === 0) ? (
+                  <p style={{ fontSize: 13.5, fontWeight: 600, color: "#8a807e", fontStyle: "italic" }}>Nenhum material adicionado a esta aula.</p>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    {currentLesson.materials.map((mat, i) => (
+                      <a key={mat.id ?? i} href={mat.url || "#"} target="_blank" rel="noreferrer" style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", background: "#221d1d", border: "1px solid #2a2424", borderRadius: 10, textDecoration: "none" }}>
+                        <span style={{ fontSize: 10, fontWeight: 900, color: "#e6dede", background: "#3a3030", padding: "3px 8px", borderRadius: 5, flexShrink: 0 }}>{(mat.type ?? "link").toUpperCase()}</span>
+                        <span style={{ flex: 1, fontSize: 14, fontWeight: 600, color: "#e6dede", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{mat.title || "Material sem nome"}</span>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8a807e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                      </a>
+                    ))}
+                  </div>
                 )}
               </div>
-            </div>
+            )}
           </div>
 
           {/* Below player */}

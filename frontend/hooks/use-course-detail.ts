@@ -2,6 +2,13 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { hashGradient, hashAvatarColor, makeTag, makeInitials } from "@/lib/utils";
 
+export interface MaterialItem {
+  id: string;
+  title: string;
+  url: string;
+  type: string;
+}
+
 export interface LessonRaw {
   id: string;
   title: string;
@@ -9,6 +16,9 @@ export interface LessonRaw {
   durationMinutes: number | null;
   order: number;
   isFree: boolean;
+  videoUrl?: string | null;
+  materials?: MaterialItem[];
+  quiz?: { id: string; title: string } | null;
 }
 
 export interface ModuleRaw {
