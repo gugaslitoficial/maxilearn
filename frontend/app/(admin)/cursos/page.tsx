@@ -2,20 +2,18 @@
 
 import { useState, useEffect, useMemo } from "react";
 import type React from "react";
+import { useRouter } from "next/navigation";
 import { Plus, Search, LayoutGrid, List, Pencil, Trash2, Eye } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Modal } from "@/components/ui/Modal";
 import { Toast } from "@/components/ui/Toast";
 import {
   useCoursesAdmin,
-  useCreateCourse,
   useDeleteCourse,
 } from "@/hooks/use-courses-admin";
 import type { ApiCourse } from "@/hooks/use-courses-admin";
-import { useProfessors } from "@/hooks/use-users";
 import {
   STATUS_LABEL,
-  STATUS_PT_TO_API,
   hashAvatarColor,
   hashGradient,
   makeTag,
@@ -64,22 +62,14 @@ const selectStyle: React.CSSProperties = {
 };
 
 export default function CursosPage() {
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState<ApiCourseStatus | "">("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  const [modalOpen, setModalOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<ApiCourse | null>(null);
   const [toast, setToast] = useState<string | null>(null);
-
-  const [form, setForm] = useState({
-    title: "",
-    description: "",
-    category: "",
-    teacherId: "",
-    status: "DRAFT" as ApiCourseStatus,
-  });
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 400);
@@ -93,9 +83,6 @@ export default function CursosPage() {
     perPage: 50,
   });
 
-  const { data: professors } = useProfessors();
-
-  const createCourse = useCreateCourse();
   const deleteCourse = useDeleteCourse();
 
   // Derive unique categories from loaded data
@@ -108,24 +95,6 @@ export default function CursosPage() {
   const filtered = useMemo(() => {
     return data?.data ?? [];
   }, [data?.data]);
-
-  async function handleCreate() {
-    if (!form.title.trim() || !form.teacherId) return;
-    try {
-      await createCourse.mutateAsync({
-        title: form.title,
-        description: form.description || undefined,
-        category: form.category || undefined,
-        teacherId: form.teacherId,
-        status: form.status,
-      });
-      setModalOpen(false);
-      setToast("Curso criado com sucesso!");
-      setForm({ title: "", description: "", category: "", teacherId: "", status: "DRAFT" });
-    } catch (err) {
-      setToast(getErrorMessage(err));
-    }
-  }
 
   async function handleDelete() {
     if (!deleteTarget) return;
@@ -162,7 +131,7 @@ export default function CursosPage() {
           </p>
         </div>
         <button
-          onClick={() => setModalOpen(true)}
+          onClick={() => router.push("/cursos/novo")}
           style={{
             display: "inline-flex",
             alignItems: "center",
@@ -284,7 +253,7 @@ export default function CursosPage() {
                       <Stat label="Alunos" value={String(course._count.enrollments)} />
                       <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
                         <CourseBtn icon={<Eye size={14} />} label="Ver" onClick={() => setToast("Visualizando curso")} />
-                        <CourseBtn icon={<Pencil size={13} />} label="Editar" onClick={() => setToast("Em breve: edição de curso")} />
+                        <CourseBtn icon={<Pencil size={13} />} label="Editar" onClick={() => router.push(`/cursos/${course.id}/editar`)} />
                         <CourseBtn icon={<Trash2 size={13} />} label="Arquivar" danger onClick={() => setDeleteTarget(course)} />
                       </div>
                     </div>
@@ -335,7 +304,7 @@ export default function CursosPage() {
                         <td style={{ padding: "14px 16px" }}>
                           <div style={{ display: "flex", gap: 6 }}>
                             <CourseBtn icon={<Eye size={14} />} label="Ver" onClick={() => setToast("Visualizando curso")} />
-                            <CourseBtn icon={<Pencil size={13} />} label="Editar" onClick={() => setToast("Em breve: edição de curso")} />
+                            <CourseBtn icon={<Pencil size={13} />} label="Editar" onClick={() => router.push(`/cursos/${c.id}/editar`)} />
                             <CourseBtn icon={<Trash2 size={13} />} label="Arquivar" danger onClick={() => setDeleteTarget(c)} />
                           </div>
                         </td>
@@ -355,83 +324,6 @@ export default function CursosPage() {
           </div>
         )}
       </div>
-
-      {/* New Course Modal */}
-      <Modal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        title="Novo curso"
-        subtitle="Preencha as informações do curso."
-        maxWidth={520}
-        footer={
-          <>
-            <button onClick={() => setModalOpen(false)} style={cancelBtnStyle}>Cancelar</button>
-            <button onClick={handleCreate} disabled={createCourse.isPending || !form.title.trim() || !form.teacherId} style={confirmBtnStyle}>
-              {createCourse.isPending ? "Criando..." : "Criar curso"}
-            </button>
-          </>
-        }
-      >
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <div>
-            <FieldLabel>Título do curso</FieldLabel>
-            <input placeholder="Ex: Segurança no Trabalho" value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} style={inputStyle} />
-          </div>
-          <div>
-            <FieldLabel>Descrição</FieldLabel>
-            <textarea
-              placeholder="Descreva o objetivo do curso..."
-              value={form.description}
-              onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-              rows={3}
-              style={{ ...inputStyle, resize: "vertical" }}
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <FieldLabel>Categoria</FieldLabel>
-              <input
-                placeholder="Ex: Segurança"
-                value={form.category}
-                onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
-                style={inputStyle}
-              />
-            </div>
-            <div>
-              <FieldLabel>Professor *</FieldLabel>
-              <select value={form.teacherId} onChange={(e) => setForm((f) => ({ ...f, teacherId: e.target.value }))} style={selectStyle}>
-                <option value="">Selecionar</option>
-                {(professors ?? []).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
-            </div>
-          </div>
-          <div>
-            <FieldLabel>Status inicial</FieldLabel>
-            <div style={{ display: "flex", gap: 10 }}>
-              {(["DRAFT", "PUBLISHED"] as ApiCourseStatus[]).map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setForm((f) => ({ ...f, status: s }))}
-                  style={{
-                    flex: 1,
-                    padding: "10px 0",
-                    borderRadius: 10,
-                    border: `2px solid ${form.status === s ? PRIMARY : "#ece4e4"}`,
-                    background: form.status === s ? "#fceeee" : "#fff",
-                    fontSize: 13.5,
-                    fontWeight: 700,
-                    color: form.status === s ? PRIMARY : "#6a605e",
-                    cursor: "pointer",
-                    transition: "all .15s",
-                  }}
-                >
-                  {STATUS_LABEL[s]}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      </Modal>
 
       {/* Delete Modal */}
       <Modal
@@ -473,10 +365,6 @@ function CourseBtn({ icon, label, onClick, danger }: { icon: React.ReactNode; la
       {icon}
     </button>
   );
-}
-
-function FieldLabel({ children }: { children: React.ReactNode }) {
-  return <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#6a605e", marginBottom: 6 }}>{children}</label>;
 }
 
 const cancelBtnStyle: React.CSSProperties = { padding: "11px 20px", borderRadius: 10, border: "1.5px solid #ece4e4", background: "#fff", fontSize: 14, fontWeight: 700, color: "#6a605e", cursor: "pointer" };

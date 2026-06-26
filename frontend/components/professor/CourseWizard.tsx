@@ -24,6 +24,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type { CourseEditorData } from "@/hooks/use-course-editor";
+import { useProfessors } from "@/hooks/use-users";
 
 const PRIMARY = "#CC1F1F";
 
@@ -36,6 +37,8 @@ interface ModuleItem { id: string; title: string; lessons: LessonItem[] }
 interface CourseWizardProps {
   initialCourseId?: string;
   initialData?: CourseEditorData;
+  backHref?: string;
+  showTeacherPicker?: boolean;
 }
 
 const STEPS = [
@@ -157,11 +160,12 @@ function SortableModule({ module, onAddLesson, onDeleteLesson, onDeleteModule }:
   );
 }
 
-export function CourseWizard({ initialCourseId, initialData }: CourseWizardProps) {
+export function CourseWizard({ initialCourseId, initialData, backHref, showTeacherPicker = false }: CourseWizardProps) {
   const router = useRouter();
   const uid = useId();
   const { user } = useAuth();
   const qc = useQueryClient();
+  const { data: professors } = useProfessors();
 
   const [step, setStep] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
@@ -202,6 +206,9 @@ export function CourseWizard({ initialCourseId, initialData }: CourseWizardProps
   );
   const [visibility, setVisibility] = useState<Visibility>(
     course?.isRestricted ? "restrito" : "publico"
+  );
+  const [selectedTeacherId, setSelectedTeacherId] = useState(
+    initialData?.course.teacherId ?? ""
   );
 
   // Modules state
@@ -274,7 +281,7 @@ export function CourseWizard({ initialCourseId, initialData }: CourseWizardProps
         description: description || undefined,
         category: category || undefined,
         level: LEVEL_UI_TO_API[level],
-        teacherId: user.id,
+        teacherId: showTeacherPicker ? selectedTeacherId : user.id,
         allowDownload: download,
         issueCertificate: cert,
         minPassingScore: Math.round(parseFloat(minScore || "7") * 10),
@@ -324,10 +331,11 @@ export function CourseWizard({ initialCourseId, initialData }: CourseWizardProps
       }
 
       qc.invalidateQueries({ queryKey: ["courses-professor"] });
+      qc.invalidateQueries({ queryKey: ["courses-admin"] });
       qc.invalidateQueries({ queryKey: ["course-editor", cId] });
 
       if (publish) {
-        router.push("/professor/cursos");
+        router.push(backHref ?? "/professor/cursos");
       }
     } catch (err: unknown) {
       const anyErr = err as { response?: { data?: { message?: string | string[] } } };
@@ -350,7 +358,7 @@ export function CourseWizard({ initialCourseId, initialData }: CourseWizardProps
       <header style={{ background: "#fff", borderBottom: "1px solid #ece4e4", padding: "14px clamp(16px,3vw,32px)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, position: "sticky", top: 0, zIndex: 20 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 16, minWidth: 0 }}>
           <button
-            onClick={() => router.back()}
+            onClick={() => backHref ? router.push(backHref) : router.back()}
             style={{ display: "inline-flex", alignItems: "center", gap: 8, fontFamily: "inherit", fontSize: 13.5, fontWeight: 700, color: "#6a605e", background: "#f6f1f1", border: "1px solid #ece4e4", padding: "9px 14px", borderRadius: 10, cursor: "pointer", flexShrink: 0 }}
           >
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6a605e" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
@@ -476,6 +484,21 @@ export function CourseWizard({ initialCourseId, initialData }: CourseWizardProps
                     </button>
                   </div>
                 </div>
+                {showTeacherPicker && (
+                  <div>
+                    <label style={labelS}>Professor responsável</label>
+                    <select
+                      value={selectedTeacherId}
+                      onChange={(e) => setSelectedTeacherId(e.target.value)}
+                      style={inputS}
+                    >
+                      <option value="">Selecione um professor…</option>
+                      {(professors ?? []).map((p) => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
             </div>
           )}
