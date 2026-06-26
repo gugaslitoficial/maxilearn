@@ -367,9 +367,12 @@ export class ReportsService {
   }
 
   async professorStudents(user: AuthenticatedUser, courseId?: string) {
+    const isAdmin = user.role === Role.ADMIN;
+    const teacherFilter = isAdmin ? {} : { teacherId: user.userId };
+
     const courseWhere = courseId
-      ? { id: courseId, teacherId: user.userId, companyId: user.companyId }
-      : { teacherId: user.userId, companyId: user.companyId };
+      ? { id: courseId, companyId: user.companyId, ...teacherFilter }
+      : { companyId: user.companyId, ...teacherFilter };
 
     const courses = await this.prisma.course.findMany({
       where: courseWhere,

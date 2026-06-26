@@ -12,7 +12,7 @@ const NAV: NavItem[] = [
   { key: "meus-cursos", label: "Meus Cursos", href: "/aluno/meus-cursos", Icon: BookOpen },
   { key: "explorar", label: "Explorar", href: "/aluno/explorar", Icon: Compass },
   { key: "certificados", label: "Certificados", href: "/aluno/certificados", Icon: Award },
-  { key: "perfil", label: "Perfil", href: "/aluno/perfil", Icon: User },
+  { key: "perfil", label: "Perfil", href: "/perfil", Icon: User },
 ];
 
 const LOADING_USER = {

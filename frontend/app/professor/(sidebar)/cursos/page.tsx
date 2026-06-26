@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Plus, BookOpen, Users, Trash2, Edit2 } from "lucide-react";
+import { Plus, BookOpen, Users, Trash2, Edit2, Eye } from "lucide-react";
 import {
   useCoursesProfessor,
   useDeleteCourseProfessor,
@@ -170,6 +170,18 @@ export default function ProfessorCursosPage() {
                     </div>
 
                     <div style={{ display: "flex", gap: 8 }}>
+                      <Link
+                        href={`/curso/${c.id}`}
+                        style={{
+                          display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                          padding: "9px 12px", background: "#f6f4f3", borderRadius: 9,
+                          fontSize: 13, fontWeight: 700, color: "#3a3030", textDecoration: "none",
+                          border: "1px solid #ece4e4",
+                        }}
+                        title="Visualizar como aluno"
+                      >
+                        <Eye size={14} />
+                      </Link>
                       <Link
                         href={`/professor/cursos/${c.id}/editar`}
                         style={{

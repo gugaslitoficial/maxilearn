@@ -50,7 +50,7 @@ export class ReportsController {
   }
 
   @Get('professor/students')
-  @Roles(Role.PROFESSOR)
+  @Roles(Role.PROFESSOR, Role.ADMIN)
   professorStudents(
     @CurrentUser() user: AuthenticatedUser,
     @Query() q: ProfessorStudentsQueryDto,
