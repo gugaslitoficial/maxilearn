@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { authApi, setApiToken } from "@/lib/api";
 import type { BackendUser, RegisterPayload } from "@/lib/api";
@@ -87,6 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<BackendUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
+  const qc = useQueryClient();
 
   // Restore session from httpOnly cookie on mount
   useEffect(() => {
@@ -105,6 +107,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setApiToken(accessToken);
         const { data } = await authApi.me();
         setUser(data);
+        // Token is now set — refetch all queries that failed without it.
+        await qc.invalidateQueries();
       } catch {
         // No valid session — stay unauthenticated
       } finally {
@@ -113,6 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     restoreSession();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const login = useCallback(

@@ -9,7 +9,18 @@ export function Providers({ children }: { children: ReactNode }) {
     () =>
       new QueryClient({
         defaultOptions: {
-          queries: { staleTime: 30_000, retry: 1 },
+          queries: {
+            staleTime: 30_000,
+            // Never retry on 401/403 — the token won't appear by itself.
+            // Session restore in AuthProvider invalidates queries explicitly
+            // after the token is loaded, which is the correct refetch trigger.
+            retry: (failureCount, error) => {
+              const status = (error as { response?: { status?: number } })
+                ?.response?.status;
+              if (status === 401 || status === 403) return false;
+              return failureCount < 1;
+            },
+          },
         },
       })
   );
