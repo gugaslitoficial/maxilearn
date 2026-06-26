@@ -51,13 +51,13 @@ const STEPS = [
 const CATEGORIES = ["Segurança", "Técnico", "Compliance", "Comportamental", "Liderança", "Outro"];
 
 const LEVEL_UI_TO_API: Record<CourseLevel, string> = {
-  basico: "BEGINNER",
+  basico: "BASIC",
   inter: "INTERMEDIATE",
   avanc: "ADVANCED",
 };
 
 const LEVEL_API_TO_UI: Record<string, CourseLevel> = {
-  BEGINNER: "basico",
+  BASIC: "basico",
   INTERMEDIATE: "inter",
   ADVANCED: "avanc",
 };
@@ -364,7 +364,7 @@ export function CourseWizard({ initialCourseId, initialData, backHref, showTeach
         for (let j = 0; j < m.lessons.length; j++) {
           const l = m.lessons[j];
           if (!localLessonIds[l.id]) {
-            const lessonType = l.type === "quiz" ? "QUIZ" : l.type === "file" ? "DOCUMENT" : "VIDEO";
+            const lessonType = l.type;
             const lRes = await api.post<{ id: string }>(`/courses/${cId}/modules/${mApiId}/lessons`, {
               title: l.title, type: lessonType, order: j + 1,
             });

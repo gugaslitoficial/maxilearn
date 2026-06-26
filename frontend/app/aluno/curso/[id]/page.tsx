@@ -212,7 +212,7 @@ export default function CursoDetalhePage() {
                             {l.status === "locked" && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#b3a6a6" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>}
                           </span>
                           <span style={{ flexShrink: 0, display: "flex", color: "#a89e9c" }}>
-                            {l.type === "VIDEO" ? (
+                            {l.type === "video" ? (
                               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m22 8-6 4 6 4V8Z" /><rect x="2" y="6" width="14" height="12" rx="2" /></svg>
                             ) : (
                               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" /></svg>

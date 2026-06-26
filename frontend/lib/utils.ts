@@ -93,16 +93,16 @@ export const STATUS_PT_TO_API: Record<string, ApiCourseStatus> = {
 
 // ─── Course level mapping ─────────────────────────────────────────────────────
 
-export type ApiCourseLevel = "BEGINNER" | "INTERMEDIATE" | "ADVANCED";
+export type ApiCourseLevel = "BASIC" | "INTERMEDIATE" | "ADVANCED";
 
 export const LEVEL_LABEL: Record<ApiCourseLevel, string> = {
-  BEGINNER: "Básico",
+  BASIC: "Básico",
   INTERMEDIATE: "Intermediário",
   ADVANCED: "Avançado",
 };
 
 export const LEVEL_PT_TO_API: Record<string, ApiCourseLevel> = {
-  Básico: "BEGINNER",
+  Básico: "BASIC",
   Intermediário: "INTERMEDIATE",
   Avançado: "ADVANCED",
 };
