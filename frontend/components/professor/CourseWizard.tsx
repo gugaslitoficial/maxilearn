@@ -914,6 +914,14 @@ export function CourseWizard({ initialCourseId, initialData, backHref, showTeach
     setModules((prev) => prev.map((m) =>
       m.id !== moduleId ? m : { ...m, lessons: m.lessons.map((l) => l.id !== lessonId ? l : { ...l, ...updates }) }
     ));
+    // Immediately persist type change so the player sees the correct type without requiring a full course save
+    if (updates.type !== undefined) {
+      const lessonApiId = lessonApiIdsRef.current[lessonId];
+      const moduleApiId = moduleApiIdsRef.current[moduleId];
+      if (lessonApiId && moduleApiId && savedCourseId) {
+        api.patch(`/courses/${savedCourseId}/modules/${moduleApiId}/lessons/${lessonApiId}`, { type: updates.type }).catch(() => {});
+      }
+    }
   }
 
   function updateLessonContent(moduleId: string, lessonId: string, updates: Partial<LessonItem>) {
@@ -983,6 +991,12 @@ export function CourseWizard({ initialCourseId, initialData, backHref, showTeach
 
   function handleQuizSaved(moduleId: string, lessonId: string, quizId: string, quizTitle: string) {
     updateLessonContent(moduleId, lessonId, { quizId, quizTitle });
+    // Safety net: ensure type="quiz" is persisted even if the type button was clicked before the lesson had a backend ID
+    const lessonApiId = lessonApiIdsRef.current[lessonId];
+    const moduleApiId = moduleApiIdsRef.current[moduleId];
+    if (lessonApiId && moduleApiId && savedCourseId) {
+      api.patch(`/courses/${savedCourseId}/modules/${moduleApiId}/lessons/${lessonApiId}`, { type: "quiz" }).catch(() => {});
+    }
   }
 
   const totalLessons = modules.reduce((acc, m) => acc + m.lessons.length, 0);
