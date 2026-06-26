@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCourseDetail } from "@/hooks/use-course-detail";
 import { useCertificates } from "@/hooks/use-certificates";
+import { useAuth } from "@/hooks/use-auth";
 import { LEVEL_LABEL } from "@/lib/utils";
 import type { ApiCourseLevel } from "@/lib/utils";
 import type { ModuleWithStatus } from "@/hooks/use-course-detail";
@@ -27,6 +28,10 @@ export default function CursoDetalhePage() {
   const { id } = useParams<{ id: string }>();
   const { data: course, isLoading } = useCourseDetail(id);
   const certs = useCertificates();
+  const { user } = useAuth();
+
+  const isAdminOrProfessor = user?.role === "ADMIN" || user?.role === "PROFESSOR";
+  const backToEditHref = user?.role === "ADMIN" ? `/cursos/${id}/editar` : `/professor/cursos/${id}/editar`;
 
   const [openModules, setOpenModules] = useState<Record<string, boolean>>({});
 
@@ -65,6 +70,25 @@ export default function CursoDetalhePage() {
   return (
     <div style={{ fontFamily: "Manrope, system-ui, sans-serif", color: "#16100f", minHeight: "100vh", background: "#f6f4f3" }}>
       <style>{`@keyframes ml-shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }`}</style>
+
+      {/* Admin/Professor preview banner */}
+      {isAdminOrProfessor && (
+        <div style={{ background: "#1e3a5f", borderBottom: "1px solid #2a4f7a", padding: "10px clamp(20px,4vw,40px)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7dbfff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+            <span style={{ fontSize: 13, fontWeight: 700, color: "#b8d9ff" }}>
+              Você está visualizando este curso como {user?.role === "ADMIN" ? "administrador" : "professor"} — estudantes veem esta página de forma diferente
+            </span>
+          </div>
+          <Link
+            href={backToEditHref}
+            style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 13, fontWeight: 800, color: "#fff", textDecoration: "none", background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.25)", borderRadius: 8, padding: "7px 14px", flexShrink: 0 }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            Voltar para edição
+          </Link>
+        </div>
+      )}
 
       {/* Top Nav */}
       <div style={{ background: "#1A1A1A", borderBottom: "1px solid #2a2424" }}>

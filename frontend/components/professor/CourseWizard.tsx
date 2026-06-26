@@ -786,6 +786,7 @@ export function CourseWizard({ initialCourseId, initialData, backHref, showTeach
   const [savedCourseId, setSavedCourseId] = useState<string | null>(initialCourseId ?? null);
   const [courseStatus, setCourseStatus] = useState<string>(initialData?.course.status ?? "DRAFT");
   const [saveToast, setSaveToast] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const [moduleApiIds] = useState<Record<string, string>>(() => {
     if (initialData) return Object.fromEntries(initialData.modules.map((m) => [m.id, m.id]));
     return {};
@@ -1098,6 +1099,53 @@ export function CourseWizard({ initialCourseId, initialData, backHref, showTeach
   return (
     <>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      {showPreview && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999, padding: "24px 16px" }}>
+          <div style={{ background: "#fff", borderRadius: 18, width: "100%", maxWidth: 620, maxHeight: "85vh", display: "flex", flexDirection: "column", boxShadow: "0 32px 64px rgba(0,0,0,0.22)", overflow: "hidden" }}>
+            {/* Warning banner */}
+            <div style={{ background: "#fffbeb", borderBottom: "1px solid #fcd34d", padding: "12px 20px", display: "flex", alignItems: "center", gap: 10 }}>
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#92400e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+              <span style={{ fontSize: 13, fontWeight: 700, color: "#92400e" }}>Este curso ainda não está publicado — estudantes não podem acessá-lo</span>
+            </div>
+            {/* Course header preview */}
+            <div style={{ background: "#1A1A1A", padding: "22px 24px" }}>
+              <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.05em", textTransform: "uppercase", color: "rgba(255,255,255,0.65)", marginBottom: 6 }}>{category} · {levelLabel}</div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: "#fff", letterSpacing: "-0.02em" }}>{courseTitle || "Curso sem título"}</div>
+              {description && <p style={{ fontSize: 13.5, fontWeight: 500, color: "#c8bebe", marginTop: 10, lineHeight: 1.55, maxWidth: 520 }}>{description}</p>}
+            </div>
+            {/* Modules preview */}
+            <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px" }}>
+              <div style={{ fontSize: 13, fontWeight: 800, color: "#3a3030", marginBottom: 12 }}>Conteúdo do curso ({modules.length} módulo{modules.length !== 1 ? "s" : ""} · {totalLessons} aula{totalLessons !== 1 ? "s" : ""})</div>
+              {modules.length === 0 && <p style={{ fontSize: 13.5, fontWeight: 600, color: "#a89e9c" }}>Nenhum módulo adicionado ainda.</p>}
+              {modules.map((m) => (
+                <div key={m.id} style={{ border: "1px solid #ece4e4", borderRadius: 10, marginBottom: 10, overflow: "hidden" }}>
+                  <div style={{ padding: "11px 14px", background: "#fcfafa", fontWeight: 800, fontSize: 14, color: "#16100f", display: "flex", alignItems: "center", gap: 8 }}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a89e9c" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                    {m.title || "Módulo sem título"}
+                    <span style={{ fontSize: 11.5, fontWeight: 600, color: "#a89e9c", marginLeft: "auto" }}>{m.lessons.length} aula{m.lessons.length !== 1 ? "s" : ""}</span>
+                  </div>
+                  {m.lessons.map((l) => (
+                    <div key={l.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 14px 9px 28px", borderTop: "1px solid #f6f1f1" }}>
+                      <span style={{ color: "#a89e9c", display: "flex", flexShrink: 0 }}>
+                        {l.type === "quiz" ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg> : l.type === "file" ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg> : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m22 8-6 4 6 4V8Z"/><rect x="2" y="6" width="14" height="12" rx="2"/></svg>}
+                      </span>
+                      <span style={{ fontSize: 13.5, fontWeight: 600, color: "#3a3030" }}>{l.title || "Aula sem título"}</span>
+                      {l.durationMinutes && <span style={{ marginLeft: "auto", fontSize: 12, fontWeight: 600, color: "#a89e9c", flexShrink: 0 }}>{l.durationMinutes} min</span>}
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+            {/* Footer */}
+            <div style={{ padding: "14px 20px", borderTop: "1px solid #ece4e4", display: "flex", justifyContent: "flex-end" }}>
+              <button onClick={() => setShowPreview(false)} type="button" style={{ fontFamily: "inherit", fontSize: 14, fontWeight: 700, color: "#16100f", background: "#f6f1f1", border: "none", borderRadius: 10, padding: "11px 22px", cursor: "pointer" }}>
+                Fechar pré-visualização
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {confirmDelete && (
         <ConfirmModal
           message={
@@ -1401,6 +1449,32 @@ export function CourseWizard({ initialCourseId, initialData, backHref, showTeach
                     <div><div style={{ fontSize: 12, fontWeight: 700, color: "#a89e9c", textTransform: "uppercase", letterSpacing: "0.03em" }}>Visibilidade</div><div style={{ fontSize: 20, fontWeight: 800, color: "#16100f", marginTop: 4 }}>{visibility === "publico" ? "Público" : "Restrito"}</div></div>
                   </div>
                 </div>
+                {savedCourseId && (
+                  <div style={{ display: "flex", gap: 10, alignItems: "center", padding: "14px 18px", background: "#f6f1f1", borderRadius: 12, border: "1px solid #ece4e4" }}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6a605e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                    <span style={{ fontSize: 13.5, fontWeight: 600, color: "#6a605e" }}>Visualizar como estudante:</span>
+                    {courseStatus === "PUBLISHED" ? (
+                      <a
+                        href={`/aluno/curso/${savedCourseId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13.5, fontWeight: 800, color: PRIMARY, textDecoration: "none", background: "#fceeee", border: `1.5px solid ${PRIMARY}`, borderRadius: 9, padding: "8px 14px" }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                        Abrir página do curso
+                      </a>
+                    ) : (
+                      <button
+                        onClick={() => setShowPreview(true)}
+                        type="button"
+                        style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13.5, fontWeight: 800, color: "#3a3030", background: "#fff", border: "1.5px solid #e2d9d9", borderRadius: 9, padding: "8px 14px", cursor: "pointer", fontFamily: "inherit" }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                        Pré-visualizar
+                      </button>
+                    )}
+                  </div>
+                )}
                 <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
                   {courseStatus !== "PUBLISHED" && (
                     <button onClick={() => saveCourse(false)} disabled={isSaving} style={{ fontFamily: "inherit", fontSize: 14.5, fontWeight: 700, color: "#16100f", background: "#fff", border: "1.5px solid #e2d9d9", borderRadius: 11, padding: "13px 22px", cursor: "pointer" }}>
