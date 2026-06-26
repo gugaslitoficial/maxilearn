@@ -3,10 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useLessonContext, useMarkLessonComplete } from "@/hooks/use-lesson";
+import { useLessonContext } from "@/hooks/use-lesson";
+import { useAuth } from "@/hooks/use-auth";
 import { PlayerSidebar } from "@/components/player/PlayerSidebar";
 import { Toast } from "@/components/ui/Toast";
-
 
 const PRIMARY = "#CC1F1F";
 
@@ -18,17 +18,22 @@ function Skeleton({ w, h, radius = 8 }: { w: string | number; h: number; radius?
   );
 }
 
-export default function PlayerAulaPage() {
+export default function PreviewPlayerPage() {
   const { id: courseId, lessonId } = useParams<{ id: string; lessonId: string }>();
   const router = useRouter();
+  const { user } = useAuth();
   const [tab, setTab] = useState<Tab>("mat");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [notes, setNotes] = useState("");
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [localCompleted, setLocalCompleted] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
   const { derived, isLoading } = useLessonContext(courseId, lessonId);
-  const markComplete = useMarkLessonComplete(courseId);
+
+  const backToEditHref = user?.role === "ADMIN"
+    ? `/cursos/${courseId}/editar`
+    : `/professor/cursos/${courseId}/editar`;
 
   const tabStyle = (t: Tab): React.CSSProperties => ({
     fontFamily: "inherit",
@@ -43,20 +48,17 @@ export default function PlayerAulaPage() {
     transition: "all .15s",
   });
 
-  async function handleMarkComplete() {
-    if (!derived || derived.isCompleted) return;
-    try {
-      await markComplete.mutateAsync(lessonId);
-      setToast("Aula marcada como concluída!");
-    } catch {
-      setToast("Erro ao marcar aula. Tente novamente.");
-    }
+  function handleMarkComplete() {
+    if (localCompleted) return;
+    setLocalCompleted(true);
+    setToast("Modo de visualização — progresso não foi salvo");
   }
 
   if (isLoading || !derived) {
     return (
       <div style={{ fontFamily: "Manrope, system-ui, sans-serif", minHeight: "100vh", background: "#121010", color: "#e6dede", display: "flex", flexDirection: "column" }}>
         <style>{`@keyframes ml-shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }`}</style>
+        <div style={{ background: "#1e3a5f", borderBottom: "1px solid #2a4f7a", padding: "10px 28px", height: 44 }} />
         <div style={{ background: "#1a1616", borderBottom: "1px solid #2a2424", padding: "12px 28px" }}>
           <Skeleton w={300} h={20} />
         </div>
@@ -69,7 +71,7 @@ export default function PlayerAulaPage() {
     );
   }
 
-  const { course, currentLesson, currentModule, prevLesson, nextLesson, isCompleted, totalLessons, completedCount, progressPercent, modulesWithStatus } = derived;
+  const { course, currentLesson, currentModule, prevLesson, nextLesson, totalLessons, completedCount, progressPercent, modulesWithStatus } = derived;
 
   return (
     <div style={{ fontFamily: "Manrope, system-ui, sans-serif", minHeight: "100vh", background: "#121010", color: "#e6dede", display: "flex", flexDirection: "column" }}>
@@ -79,11 +81,31 @@ export default function PlayerAulaPage() {
         @media (max-width: 1024px) { .player-sidebar-desktop { display: none !important; } .lg-only { display: flex !important; } }
       `}</style>
 
+      {/* Preview banner */}
+      <div style={{ background: "#1e3a5f", borderBottom: "1px solid #2a4f7a", padding: "9px clamp(16px,3vw,28px)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", flexShrink: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7dbfff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+          <span style={{ fontSize: 12.5, fontWeight: 700, color: "#b8d9ff" }}>
+            Modo de visualização — suas interações não geram progresso real
+          </span>
+        </div>
+        <Link
+          href={backToEditHref}
+          style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 800, color: "#fff", textDecoration: "none", background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.25)", borderRadius: 7, padding: "6px 13px", flexShrink: 0 }}
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          Voltar para edição
+        </Link>
+      </div>
+
       {/* Topbar */}
       <header style={{ background: "#1a1616", borderBottom: "1px solid #2a2424", padding: "12px clamp(16px,3vw,28px)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 16, minWidth: 0 }}>
-          <Link href={`/aluno/curso/${courseId}`} style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 700, color: "#cfc8c8", textDecoration: "none", background: "#272121", border: "1px solid #332c2c", padding: "8px 13px", borderRadius: 9, flexShrink: 0 }}>
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5" /><path d="m12 19-7-7 7-7" /></svg>
+          <Link
+            href={`/curso/${courseId}`}
+            style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 700, color: "#cfc8c8", textDecoration: "none", background: "#272121", border: "1px solid #332c2c", padding: "8px 13px", borderRadius: 9, flexShrink: 0 }}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
             Sair
           </Link>
           <div style={{ minWidth: 0 }}>
@@ -96,16 +118,20 @@ export default function PlayerAulaPage() {
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
-          <button className="lg-only" onClick={() => setDrawerOpen(true)} style={{ display: "none", alignItems: "center", gap: 6, fontFamily: "inherit", fontSize: 12, fontWeight: 700, color: "#cfc8c8", background: "#272121", border: "1px solid #332c2c", padding: "8px 12px", borderRadius: 9, cursor: "pointer" }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" /></svg>
+          <button
+            className="lg-only"
+            onClick={() => setDrawerOpen(true)}
+            style={{ display: "none", alignItems: "center", gap: 6, fontFamily: "inherit", fontSize: 12, fontWeight: 700, color: "#cfc8c8", background: "#272121", border: "1px solid #332c2c", padding: "8px 12px", borderRadius: 9, cursor: "pointer" }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
             Conteúdo
           </button>
-          <Link href="/aluno/dashboard" style={{ display: "flex", alignItems: "center", gap: 9, textDecoration: "none" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
             <div style={{ width: 28, height: 28, borderRadius: 8, background: PRIMARY, display: "flex", alignItems: "center", justifyContent: "center" }}>
               <div style={{ width: 11, height: 11, border: "2.5px solid #fff", borderRadius: "50%", borderRightColor: "transparent", transform: "rotate(-45deg)" }} />
             </div>
             <span style={{ fontSize: 15, fontWeight: 800, letterSpacing: "-0.02em", color: "#fff" }}>Maxi<span style={{ color: PRIMARY }}>Learn</span></span>
-          </Link>
+          </div>
         </div>
       </header>
 
@@ -115,7 +141,7 @@ export default function PlayerAulaPage() {
         {/* MAIN */}
         <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", overflowY: "auto" }}>
 
-          {/* VIDEO placeholder */}
+          {/* Video placeholder */}
           <div style={{ background: "#000", display: "flex", alignItems: "center", justifyContent: "center", padding: "clamp(12px,2vw,28px)" }}>
             <div style={{ width: "100%", maxWidth: 1100, aspectRatio: "16 / 9", background: "linear-gradient(135deg,#1a1414,#2a2020)", borderRadius: 12, position: "relative", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at center, rgba(204,31,31,0.16), transparent 65%)" }} />
@@ -141,33 +167,33 @@ export default function PlayerAulaPage() {
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0, flexWrap: "wrap" }}>
                   <button
-                    onClick={() => prevLesson && router.push(`/aluno/curso/${courseId}/aula/${prevLesson.id}`)}
+                    onClick={() => prevLesson && router.push(`/curso/${courseId}/aula/${prevLesson.id}`)}
                     disabled={!prevLesson}
                     type="button"
                     style={{ display: "inline-flex", alignItems: "center", gap: 7, fontFamily: "inherit", fontSize: 13.5, fontWeight: 700, color: prevLesson ? "#cfc8c8" : "#4a4040", background: "#272121", border: "1px solid #332c2c", borderRadius: 10, padding: "11px 16px", cursor: prevLesson ? "pointer" : "not-allowed", opacity: prevLesson ? 1 : 0.5 }}
                   >
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
                     Anterior
                   </button>
                   <button
-                    onClick={() => nextLesson && router.push(`/aluno/curso/${courseId}/aula/${nextLesson.id}`)}
+                    onClick={() => nextLesson && router.push(`/curso/${courseId}/aula/${nextLesson.id}`)}
                     disabled={!nextLesson}
                     type="button"
                     style={{ display: "inline-flex", alignItems: "center", gap: 7, fontFamily: "inherit", fontSize: 13.5, fontWeight: 700, color: nextLesson ? "#fff" : "#4a4040", background: "#272121", border: "1px solid #332c2c", borderRadius: 10, padding: "11px 16px", cursor: nextLesson ? "pointer" : "not-allowed", opacity: nextLesson ? 1 : 0.5 }}
                   >
                     Próxima
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6" /></svg>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
                   </button>
                   <button
                     onClick={handleMarkComplete}
-                    disabled={isCompleted || markComplete.isPending}
+                    disabled={localCompleted}
                     type="button"
-                    style={{ display: "inline-flex", alignItems: "center", gap: 9, fontFamily: "inherit", fontSize: 13.5, fontWeight: 800, color: "#fff", background: isCompleted ? "#1f8a5b" : PRIMARY, border: "none", borderRadius: 10, padding: "11px 18px", cursor: isCompleted ? "default" : "pointer", boxShadow: isCompleted ? "none" : "0 6px 16px rgba(204,31,31,0.3)", transition: "background .2s", opacity: markComplete.isPending ? 0.7 : 1 }}
+                    style={{ display: "inline-flex", alignItems: "center", gap: 9, fontFamily: "inherit", fontSize: 13.5, fontWeight: 800, color: "#fff", background: localCompleted ? "#1f8a5b" : PRIMARY, border: "none", borderRadius: 10, padding: "11px 18px", cursor: localCompleted ? "default" : "pointer", boxShadow: localCompleted ? "none" : "0 6px 16px rgba(204,31,31,0.3)", transition: "background .2s" }}
                   >
                     <span style={{ width: 20, height: 20, borderRadius: "50%", flexShrink: 0, background: "rgba(255,255,255,0.25)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
                     </span>
-                    {isCompleted ? "Aula concluída ✓" : markComplete.isPending ? "Salvando..." : "Marcar como concluída"}
+                    {localCompleted ? "Concluída ✓ (sem salvar)" : "Marcar como concluída"}
                   </button>
                 </div>
               </div>
@@ -197,7 +223,7 @@ export default function PlayerAulaPage() {
                     placeholder="Escreva suas anotações sobre esta aula..."
                     style={{ width: "100%", minHeight: 180, fontFamily: "inherit", fontSize: 14.5, lineHeight: 1.6, fontWeight: 500, color: "#e6dede", background: "#221d1d", border: "1px solid #322b2b", borderRadius: 13, padding: 16, outline: "none", resize: "vertical" }}
                   />
-                  <span style={{ fontSize: 12, fontWeight: 600, color: "#8a807e", marginTop: 8, display: "block" }}>Suas anotações são privadas e salvas localmente.</span>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: "#8a807e", marginTop: 8, display: "block" }}>Anotações em modo de visualização não são salvas.</span>
                 </div>
               )}
 
@@ -223,14 +249,20 @@ export default function PlayerAulaPage() {
               totalLessons={totalLessons}
               progressPercent={progressPercent}
               onClose={() => setSidebarOpen(false)}
-              lessonHref={(cId, lId) => `/aluno/curso/${cId}/aula/${lId}`}
+              lessonHref={(cId, lId) => `/curso/${cId}/aula/${lId}`}
+              previewMode
             />
           </aside>
         )}
 
         {!sidebarOpen && (
-          <button className="player-sidebar-desktop" onClick={() => setSidebarOpen(true)} type="button" style={{ width: 48, flexShrink: 0, background: "#1a1616", border: "none", borderLeft: "1px solid #2a2424", color: "#cfc8c8", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 12, paddingTop: 20 }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
+          <button
+            className="player-sidebar-desktop"
+            onClick={() => setSidebarOpen(true)}
+            type="button"
+            style={{ width: 48, flexShrink: 0, background: "#1a1616", border: "none", borderLeft: "1px solid #2a2424", color: "#cfc8c8", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 12, paddingTop: 20 }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
             <span style={{ writingMode: "vertical-rl", fontSize: 12, fontWeight: 800, letterSpacing: "0.05em", color: "#8a807e", textTransform: "uppercase" }}>Conteúdo do curso</span>
           </button>
         )}
@@ -246,7 +278,8 @@ export default function PlayerAulaPage() {
                 totalLessons={totalLessons}
                 progressPercent={progressPercent}
                 onClose={() => setDrawerOpen(false)}
-                lessonHref={(cId, lId) => `/aluno/curso/${cId}/aula/${lId}`}
+                lessonHref={(cId, lId) => `/curso/${cId}/aula/${lId}`}
+                previewMode
               />
             </aside>
           </div>
@@ -257,4 +290,3 @@ export default function PlayerAulaPage() {
     </div>
   );
 }
-

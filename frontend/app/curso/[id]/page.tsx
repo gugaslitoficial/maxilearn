@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useCourseDetail } from "@/hooks/use-course-detail";
 import { useAuth } from "@/hooks/use-auth";
 import { LEVEL_LABEL } from "@/lib/utils";
@@ -29,6 +29,7 @@ export default function CursoPreviewPage() {
   const { id } = useParams<{ id: string }>();
   const { data: course, isLoading } = useCourseDetail(id);
   const { user } = useAuth();
+  const router = useRouter();
 
   const [openModules, setOpenModules] = useState<Record<string, boolean>>({});
 
@@ -42,6 +43,7 @@ export default function CursoPreviewPage() {
       : `/professor/cursos/${id}/editar`;
 
   const levelLabel = course?.level ? (LEVEL_LABEL[course.level as ApiCourseLevel] ?? course.level) : null;
+  const firstLesson = course?.modulesWithStatus.flatMap((m) => m.lessons)[0] ?? null;
 
   if (isLoading) {
     return (
@@ -189,6 +191,16 @@ export default function CursoPreviewPage() {
                 {course.totalLessons} aulas
               </span>
             </div>
+            {firstLesson && (
+              <button
+                onClick={() => router.push(`/curso/${id}/aula/${firstLesson.id}`)}
+                type="button"
+                style={{ marginTop: 22, display: "inline-flex", alignItems: "center", gap: 9, fontSize: 15, fontWeight: 800, color: "#fff", background: PRIMARY, borderRadius: 12, padding: "14px 28px", border: "none", cursor: "pointer", boxShadow: "0 10px 26px rgba(204,31,31,0.32)", fontFamily: "inherit" }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="#fff"><path d="M8 5v14l11-7z" /></svg>
+                Ver primeira aula
+              </button>
+            )}
           </div>
         </div>
       </header>
@@ -203,6 +215,7 @@ export default function CursoPreviewPage() {
             .curso-preview-body { grid-template-columns: 1fr !important; }
             .objectives-grid { grid-template-columns: 1fr !important; }
           }
+          .lesson-row-hover:hover { background: #fdf6f6 !important; }
         `}</style>
 
         {/* LEFT */}
@@ -295,9 +308,11 @@ export default function CursoPreviewPage() {
                   {open && (
                     <div style={{ padding: "4px 0 12px" }}>
                       {m.lessons.map((l) => (
-                        <div
+                        <Link
                           key={l.id}
-                          style={{ display: "flex", alignItems: "center", gap: 13, padding: "11px 26px" }}
+                          href={`/curso/${id}/aula/${l.id}`}
+                          style={{ display: "flex", alignItems: "center", gap: 13, padding: "11px 26px", textDecoration: "none" }}
+                          className="lesson-row-hover"
                         >
                           <span
                             style={{
@@ -311,9 +326,7 @@ export default function CursoPreviewPage() {
                               justifyContent: "center",
                             }}
                           >
-                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#8a807e" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                              <circle cx="12" cy="12" r="10" />
-                            </svg>
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="#8a807e"><path d="M8 5v14l11-7z" /></svg>
                           </span>
                           <span style={{ flexShrink: 0, display: "flex", color: "#a89e9c" }}>
                             {l.type === "video" ? (
@@ -334,7 +347,7 @@ export default function CursoPreviewPage() {
                               {l.durationMinutes} min
                             </span>
                           )}
-                        </div>
+                        </Link>
                       ))}
                     </div>
                   )}
