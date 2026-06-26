@@ -19,7 +19,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Plus, Trash2 } from "lucide-react";
+import { GripVertical, Plus, Trash2, Pencil } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
@@ -115,11 +115,19 @@ function LessonIcon({ type }: { type: string }) {
   );
 }
 
-function SortableModule({ module, onAddLesson, onDeleteLesson, onDeleteModule }: {
+function SortableModule({
+  module, savedCourseId, moduleApiId, lessonApiIds,
+  onAddLesson, onDeleteLesson, onDeleteModule, onUpdateModuleTitle, onUpdateLesson,
+}: {
   module: ModuleItem;
+  savedCourseId?: string | null;
+  moduleApiId?: string;
+  lessonApiIds?: Record<string, string>;
   onAddLesson: (moduleId: string) => void;
   onDeleteLesson: (moduleId: string, lessonId: string) => void;
   onDeleteModule: (moduleId: string) => void;
+  onUpdateModuleTitle: (moduleId: string, title: string) => void;
+  onUpdateLesson: (moduleId: string, lessonId: string, updates: { title?: string; type?: "video" | "quiz" | "file" }) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: module.id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
@@ -133,25 +141,60 @@ function SortableModule({ module, onAddLesson, onDeleteLesson, onDeleteModule }:
         <span style={{ fontSize: 11.5, fontWeight: 800, letterSpacing: "0.04em", textTransform: "uppercase", color: PRIMARY, background: "#fceeee", border: "1px solid #f6d6d6", padding: "3px 9px", borderRadius: 100, flexShrink: 0 }}>
           Módulo
         </span>
-        <span style={{ flex: 1, fontSize: 15, fontWeight: 800, color: "#16100f", minWidth: 0 }}>{module.title}</span>
+        <input
+          value={module.title}
+          onChange={(e) => onUpdateModuleTitle(module.id, e.target.value)}
+          placeholder="Título do módulo"
+          style={{ flex: 1, border: "none", background: "transparent", outline: "none", fontSize: 15, fontWeight: 800, color: "#16100f", fontFamily: "inherit", minWidth: 0 }}
+        />
         <span style={{ fontSize: 12.5, fontWeight: 600, color: "#a89e9c", flexShrink: 0 }}>{module.lessons.length} aulas</span>
         <button onClick={() => onDeleteModule(module.id)} type="button" style={{ width: 30, height: 30, border: "none", background: "transparent", cursor: "pointer", color: "#a89e9c", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
           <Trash2 size={15} />
         </button>
       </div>
       <div style={{ padding: "10px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
-        {module.lessons.map((l) => (
-          <div key={l.id} style={{ display: "flex", alignItems: "center", gap: 11, padding: "10px 12px", border: "1px solid #f0e8e8", borderRadius: 10, background: "#fff" }}>
-            <span style={{ cursor: "grab", color: "#cfc4c2", display: "flex", flexShrink: 0 }}><GripVertical size={14} /></span>
-            <span style={{ width: 28, height: 28, borderRadius: 8, flexShrink: 0, background: "#f6f1f1", display: "flex", alignItems: "center", justifyContent: "center", color: "#8a807e" }}>
-              <LessonIcon type={l.type} />
-            </span>
-            <span style={{ flex: 1, fontSize: 14, fontWeight: 600, color: "#3a3030", minWidth: 0 }}>{l.title}</span>
-            <button onClick={() => onDeleteLesson(module.id, l.id)} type="button" style={{ width: 26, height: 26, border: "none", background: "transparent", cursor: "pointer", color: "#c98a8a", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
-            </button>
-          </div>
-        ))}
+        {module.lessons.map((l) => {
+          const lessonApiId = lessonApiIds?.[l.id];
+          const editHref = savedCourseId && lessonApiId && moduleApiId
+            ? `/professor/cursos/${savedCourseId}/aulas/${lessonApiId}?moduleId=${moduleApiId}`
+            : null;
+          return (
+            <div key={l.id} style={{ border: "1px solid #f0e8e8", borderRadius: 10, background: "#fff", overflow: "hidden" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 11, padding: "10px 12px" }}>
+                <span style={{ cursor: "grab", color: "#cfc4c2", display: "flex", flexShrink: 0 }}><GripVertical size={14} /></span>
+                <span style={{ width: 28, height: 28, borderRadius: 8, flexShrink: 0, background: "#f6f1f1", display: "flex", alignItems: "center", justifyContent: "center", color: "#8a807e" }}>
+                  <LessonIcon type={l.type} />
+                </span>
+                <input
+                  value={l.title}
+                  onChange={(e) => onUpdateLesson(module.id, l.id, { title: e.target.value })}
+                  placeholder="Título da aula"
+                  style={{ flex: 1, border: "none", background: "transparent", outline: "none", fontFamily: "inherit", fontSize: 14, fontWeight: 600, color: "#3a3030", minWidth: 0 }}
+                />
+                {editHref && (
+                  <a href={editHref} title="Editar conteúdo da aula" style={{ width: 26, height: 26, border: "1px solid #ece4e4", borderRadius: 7, background: "#fafafa", display: "flex", alignItems: "center", justifyContent: "center", color: "#6a605e", textDecoration: "none", flexShrink: 0 }}>
+                    <Pencil size={13} />
+                  </a>
+                )}
+                <button onClick={() => onDeleteLesson(module.id, l.id)} type="button" style={{ width: 26, height: 26, border: "none", background: "transparent", cursor: "pointer", color: "#c98a8a", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                </button>
+              </div>
+              <div style={{ display: "flex", gap: 5, padding: "0 12px 10px 55px" }}>
+                {(["video", "quiz", "file"] as const).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => onUpdateLesson(module.id, l.id, { type: t })}
+                    style={{ padding: "3px 10px", borderRadius: 6, border: `1.5px solid ${l.type === t ? PRIMARY : "#ece4e4"}`, background: l.type === t ? "#fceeee" : "#fff", fontSize: 11.5, fontWeight: 700, color: l.type === t ? PRIMARY : "#a89e9c", cursor: "pointer", fontFamily: "inherit" }}
+                  >
+                    {t === "video" ? "Vídeo" : t === "quiz" ? "Quiz" : "Arquivo"}
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        })}
         <button onClick={() => onAddLesson(module.id)} type="button" style={{ display: "inline-flex", alignItems: "center", gap: 8, fontFamily: "inherit", fontSize: 13.5, fontWeight: 700, color: PRIMARY, background: "#fff", border: "1.5px dashed #e2d2d2", borderRadius: 10, padding: "11px 14px", cursor: "pointer", alignSelf: "flex-start" }}>
           <Plus size={15} /> Adicionar aula
         </button>
@@ -259,6 +302,14 @@ export function CourseWizard({ initialCourseId, initialData, backHref, showTeach
   }
   function deleteModule(moduleId: string) {
     setModules((prev) => prev.filter((m) => m.id !== moduleId));
+  }
+  function updateModuleTitle(moduleId: string, title: string) {
+    setModules((prev) => prev.map((m) => m.id !== moduleId ? m : { ...m, title }));
+  }
+  function updateLesson(moduleId: string, lessonId: string, updates: { title?: string; type?: "video" | "quiz" | "file" }) {
+    setModules((prev) => prev.map((m) =>
+      m.id !== moduleId ? m : { ...m, lessons: m.lessons.map((l) => l.id !== lessonId ? l : { ...l, ...updates }) }
+    ));
   }
 
   const totalLessons = modules.reduce((acc, m) => acc + m.lessons.length, 0);
@@ -524,7 +575,18 @@ export function CourseWizard({ initialCourseId, initialData, backHref, showTeach
                 <SortableContext items={modules.map((m) => m.id)} strategy={verticalListSortingStrategy}>
                   <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                     {modules.map((m) => (
-                      <SortableModule key={m.id} module={m} onAddLesson={addLesson} onDeleteLesson={deleteLesson} onDeleteModule={deleteModule} />
+                      <SortableModule
+                        key={m.id}
+                        module={m}
+                        savedCourseId={savedCourseId}
+                        moduleApiId={moduleApiIdsRef.current[m.id]}
+                        lessonApiIds={lessonApiIdsRef.current}
+                        onAddLesson={addLesson}
+                        onDeleteLesson={deleteLesson}
+                        onDeleteModule={deleteModule}
+                        onUpdateModuleTitle={updateModuleTitle}
+                        onUpdateLesson={updateLesson}
+                      />
                     ))}
                   </div>
                 </SortableContext>
