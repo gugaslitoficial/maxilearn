@@ -65,9 +65,7 @@ export function proxy(request: NextRequest) {
   if (isProfessorRoute && payload!.role !== "PROFESSOR") {
     return NextResponse.redirect(new URL(roleHome(payload!.role), request.url));
   }
-  if (isStudentRoute && payload!.role !== "STUDENT") {
-    return NextResponse.redirect(new URL(roleHome(payload!.role), request.url));
-  }
+  // ADMIN and PROFESSOR can access /aluno/ routes to preview as student — no block here
   // Admin routes (everything else): only ADMIN can access
   if (!isProfessorRoute && !isStudentRoute && payload!.role !== "ADMIN") {
     return NextResponse.redirect(new URL(roleHome(payload!.role), request.url));
