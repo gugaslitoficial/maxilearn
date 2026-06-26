@@ -23,7 +23,10 @@ const COURSE_SELECT = {
   teacherId: true,
   allowDownload: true,
   issueCertificate: true,
+  certificateType: true,
   minPassingScore: true,
+  minApprovalScore: true,
+  estimatedDurationMinutes: true,
   objectives: true,
   isRestricted: true,
   createdAt: true,
@@ -153,7 +156,10 @@ export class CoursesService {
         companyId: user.companyId,
         allowDownload: dto.allowDownload,
         issueCertificate: dto.issueCertificate,
+        certificateType: dto.certificateType,
         minPassingScore: dto.minPassingScore,
+        minApprovalScore: dto.minApprovalScore,
+        estimatedDurationMinutes: dto.estimatedDurationMinutes,
         objectives: dto.objectives ?? [],
         isRestricted: dto.isRestricted,
       },
@@ -189,8 +195,8 @@ export class CoursesService {
 
   async remove(courseId: string, user: AuthenticatedUser) {
     await this.assertMutateAccess(courseId, user);
-    await this.prisma.course.update({ where: { id: courseId }, data: { status: CourseStatus.ARCHIVED } });
-    return { message: 'Course archived' };
+    await this.prisma.course.delete({ where: { id: courseId } });
+    return { message: 'Course deleted' };
   }
 
   async getProgress(courseId: string, user: AuthenticatedUser) {
@@ -224,8 +230,11 @@ export class CoursesService {
     });
     if (existing) return existing;
 
+    const status = user.role === Role.STUDENT ? 'PENDING' : 'ACTIVE';
+    const approvedAt = status === 'ACTIVE' ? new Date() : undefined;
+
     return this.prisma.enrollment.create({
-      data: { studentId, courseId },
+      data: { studentId, courseId, status, approvedAt },
     });
   }
 }

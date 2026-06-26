@@ -6,7 +6,6 @@ import {
   IsNumber,
   IsOptional,
   IsString,
-  IsUrl,
   Max,
   Min,
 } from 'class-validator';
@@ -29,7 +28,7 @@ export class CreateCourseDto {
   @IsOptional()
   level?: CourseLevel;
 
-  @IsUrl()
+  @IsString()
   @IsOptional()
   thumbnailUrl?: string;
 
@@ -45,11 +44,26 @@ export class CreateCourseDto {
   @IsOptional()
   issueCertificate?: boolean;
 
+  @IsString()
+  @IsOptional()
+  certificateType?: string;
+
   @IsNumber()
   @Min(0)
   @Max(100)
   @IsOptional()
   minPassingScore?: number;
+
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  @IsOptional()
+  minApprovalScore?: number;
+
+  @IsNumber()
+  @Min(1)
+  @IsOptional()
+  estimatedDurationMinutes?: number;
 
   @IsArray()
   @IsString({ each: true })

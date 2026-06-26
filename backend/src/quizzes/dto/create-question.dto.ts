@@ -23,6 +23,11 @@ export class CreateQuestionDto {
   @IsOptional()
   order?: number;
 
+  @IsInt()
+  @Min(2)
+  @IsOptional()
+  displayCount?: number;
+
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => CreateOptionDto)

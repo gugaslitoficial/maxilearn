@@ -202,6 +202,7 @@ export class QuizzesService {
         statement: q.statement,
         type: q.type,
         order: q.order,
+        displayCount: q.displayCount,
         options: user.role === Role.STUDENT
           ? opts.map(({ id, text }) => ({ id, text }))
           : opts,
@@ -258,6 +259,7 @@ export class QuizzesService {
       statement: q.statement,
       type: q.type,
       order: q.order ?? idx,
+      displayCount: q.displayCount ?? null,
       options: this.normalizeOptions(q),
     }));
 
@@ -332,6 +334,7 @@ export class QuizzesService {
         statement: dto.statement,
         type: dto.type,
         order: dto.order ?? nextOrder,
+        displayCount: dto.displayCount ?? null,
         options: this.normalizeOptions(dto),
       },
     });
@@ -365,6 +368,7 @@ export class QuizzesService {
       data: {
         ...(dto.statement && { statement: dto.statement }),
         ...(dto.type && { type: dto.type }),
+        ...(dto.displayCount !== undefined && { displayCount: dto.displayCount }),
         ...(options && { options }),
       },
     });
