@@ -57,6 +57,7 @@ export function useActiveEnrollments(courseId?: string) {
       return data;
     },
     placeholderData: (prev) => prev,
+    enabled: courseId !== undefined,
   });
 }
 

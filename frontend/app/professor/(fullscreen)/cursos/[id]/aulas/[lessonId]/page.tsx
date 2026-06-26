@@ -126,7 +126,7 @@ export default function AulaEditorPage() {
         videoUrl: videoUrl || undefined,
         isFreePreview: freePreview,
         durationMinutes: durationMinutes ? Number(durationMinutes) : undefined,
-        type: "VIDEO",
+        type: "video",
       };
 
       if (isNew && !savedId) {

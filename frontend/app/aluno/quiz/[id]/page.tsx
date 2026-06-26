@@ -192,7 +192,7 @@ export default function QuizPage() {
             {/* Question card */}
             <div className="ml-fade" key={`q-${currentQ}`} style={{ background: "#fff", border: "1px solid #ece4e4", borderRadius: 18, padding: "clamp(22px,3vw,32px)", boxShadow: "0 10px 30px rgba(60,20,20,0.06)" }}>
               <div style={{ display: "inline-flex", alignItems: "center", fontSize: 11.5, fontWeight: 800, letterSpacing: "0.04em", textTransform: "uppercase", color: PRIMARY, background: "#fceeee", padding: "4px 11px", borderRadius: 100, marginBottom: 16 }}>
-                Múltipla escolha
+                {questions[currentQ].type === "TRUE_FALSE" ? "Verdadeiro ou Falso" : "Múltipla escolha"}
               </div>
               <h2 style={{ fontSize: 21, fontWeight: 800, letterSpacing: "-0.02em", color: "#16100f", lineHeight: 1.3 }}>{questions[currentQ].statement}</h2>
               <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 24 }}>

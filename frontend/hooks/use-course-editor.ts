@@ -54,6 +54,7 @@ export interface UpdateLessonPayload {
   isFreePreview?: boolean;
   durationMinutes?: number;
   order?: number;
+  type?: string;
 }
 
 async function fetchCourseWithModules(courseId: string): Promise<CourseEditorData> {
