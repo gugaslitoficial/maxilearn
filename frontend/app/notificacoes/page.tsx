@@ -13,7 +13,8 @@ const TYPES: Record<NotifType, { color: string; bg: string; label: string; paths
   quiz:  { color: "#7a4fb9", bg: "#f1ebf8", label: "Quiz",          paths: ["M9 11l3 3L22 4", "M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"] },
   cert:  { color: "#b9842f", bg: "#fdf3e2", label: "Certificado",   paths: ["M12 8a6 6 0 1 0 0 .01", "M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"] },
   curso: { color: "#CC1F1F", bg: "#fceeee", label: "Novo curso",    paths: ["M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z", "M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"] },
-  plano: { color: "#d9821f", bg: "#fdf6e9", label: "Plano",         paths: ["M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z", "M12 9v4", "M12 17h.01"] },
+  plano:    { color: "#d9821f", bg: "#fdf6e9", label: "Plano",         paths: ["M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z", "M12 9v4", "M12 17h.01"] },
+  question: { color: "#2a7a6a", bg: "#e8f5f2", label: "Dúvida",       paths: ["M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"] },
 };
 
 type FilterKey = "todas" | "naolidas";
