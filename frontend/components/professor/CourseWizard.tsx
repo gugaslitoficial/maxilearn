@@ -48,13 +48,13 @@ interface LocalQuestion {
   localId: string;
   statement: string;
   type: "MULTIPLE_CHOICE" | "TRUE_FALSE";
+  displayCount?: number;
   options: LocalOption[];
 }
 
 interface QuizDraft {
   quizId?: string;
   title: string;
-  minPassingScore: number;
   maxAttempts: number | null;
   shuffleQuestions: boolean;
   showAnswersAfter: boolean;
@@ -239,17 +239,6 @@ function VideoPanel({
             <img src={thumbnailUrl} alt="Thumbnail do vídeo" style={{ width: "100%", display: "block" }} />
           </div>
         )}
-      </div>
-      <div>
-        <label style={labelS}>Duração (minutos)</label>
-        <input
-          type="number"
-          value={lesson.durationMinutes ?? ""}
-          onChange={(e) => onUpdate({ durationMinutes: e.target.value ? Number(e.target.value) : undefined })}
-          min="1"
-          placeholder="Ex: 15"
-          style={{ ...inputS, maxWidth: 160, fontSize: 13.5 }}
-        />
       </div>
     </div>
   );
@@ -442,6 +431,7 @@ function QuizPanel({
         statement: q.statement,
         type: q.type,
         order: idx,
+        displayCount: q.displayCount ?? undefined,
         options: q.type === "TRUE_FALSE"
           ? [{ text: "Verdadeiro", isCorrect: q.options[0]?.isCorrect ?? true }, { text: "Falso", isCorrect: !(q.options[0]?.isCorrect ?? true) }]
           : q.options.map((o) => ({ text: o.text, isCorrect: o.isCorrect })),
@@ -450,7 +440,6 @@ function QuizPanel({
         title: draft.title,
         courseId: savedCourseId,
         lessonId: lessonApiId,
-        minPassingScore: draft.minPassingScore,
         maxAttempts: draft.maxAttempts,
         shuffleQuestions: draft.shuffleQuestions,
         showAnswersAfter: draft.showAnswersAfter,
@@ -469,14 +458,14 @@ function QuizPanel({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-        <div>
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+        <div style={{ flex: "1 1 200px" }}>
           <label style={labelS}>Título do quiz</label>
           <input value={draft.title} onChange={(e) => onDraftChange({ title: e.target.value })} placeholder="Ex: Quiz de fixação" style={{ ...inputS, fontSize: 13.5 }} />
         </div>
-        <div>
-          <label style={labelS}>Nota mínima (%)</label>
-          <input type="number" value={draft.minPassingScore} onChange={(e) => onDraftChange({ minPassingScore: Number(e.target.value) })} min="0" max="100" style={{ ...inputS, fontSize: 13.5 }} />
+        <div style={{ flex: "0 0 140px" }}>
+          <label style={labelS}>Máx. tentativas</label>
+          <input type="number" value={draft.maxAttempts ?? ""} onChange={(e) => onDraftChange({ maxAttempts: e.target.value ? Number(e.target.value) : null })} min="1" placeholder="Ilimitado" style={{ ...inputS, fontSize: 13.5 }} />
         </div>
       </div>
       <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
@@ -507,24 +496,57 @@ function QuizPanel({
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
               </button>
             </div>
-            <div style={{ display: "flex", gap: 6, marginBottom: 10, paddingLeft: 32 }}>
+            <div style={{ display: "flex", gap: 6, marginBottom: 10, paddingLeft: 32, flexWrap: "wrap", alignItems: "center" }}>
               {(["MULTIPLE_CHOICE", "TRUE_FALSE"] as const).map((t) => (
                 <button key={t} type="button" onClick={() => updateQuestion(q.localId, { type: t })}
                   style={{ padding: "3px 10px", borderRadius: 6, border: `1.5px solid ${q.type === t ? PRIMARY : "#ece4e4"}`, background: q.type === t ? "#fceeee" : "#fff", fontSize: 11.5, fontWeight: 700, color: q.type === t ? PRIMARY : "#a89e9c", cursor: "pointer", fontFamily: "inherit" }}>
                   {t === "MULTIPLE_CHOICE" ? "Múltipla escolha" : "V ou F"}
                 </button>
               ))}
+              {q.type === "MULTIPLE_CHOICE" && (
+                <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontSize: 11.5, fontWeight: 700, color: "#a89e9c" }}>Mostrar</span>
+                  <select
+                    value={q.displayCount ?? ""}
+                    onChange={(e) => updateQuestion(q.localId, { displayCount: e.target.value ? Number(e.target.value) : undefined })}
+                    style={{ border: "1px solid #eadfdf", borderRadius: 6, padding: "3px 8px", fontSize: 12, fontFamily: "inherit", fontWeight: 700, color: "#3a3030", background: "#fff", outline: "none", cursor: "pointer" }}
+                  >
+                    <option value="">Todas as opções</option>
+                    {Array.from({ length: Math.max(0, q.options.length - 1) }, (_, i) => i + 2).map((n) => (
+                      <option key={n} value={n}>{n} opções</option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
             {q.type === "MULTIPLE_CHOICE" && (
               <div style={{ paddingLeft: 32, display: "flex", flexDirection: "column", gap: 7 }}>
-                {q.options.map((o) => (
+                {/* Correct answer selector */}
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: "#3a3030" }}>Resposta correta:</span>
+                  <select
+                    value={q.options.find((o) => o.isCorrect)?.localId ?? ""}
+                    onChange={(e) => {
+                      const correctId = e.target.value;
+                      updateOption(q.localId, correctId, { isCorrect: true });
+                    }}
+                    style={{ border: "1px solid #eadfdf", borderRadius: 7, padding: "5px 10px", fontSize: 13, fontFamily: "inherit", fontWeight: 600, color: "#1f5a3b", background: "#e8f5ee", outline: "none", cursor: "pointer" }}
+                  >
+                    {q.options.map((o, oi) => (
+                      <option key={o.localId} value={o.localId}>{`Opção ${oi + 1}${o.text ? `: ${o.text.slice(0, 30)}` : ""}`}</option>
+                    ))}
+                  </select>
+                </div>
+                {q.options.map((o, oi) => (
                   <div key={o.localId} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <input type="radio" checked={o.isCorrect} onChange={() => updateOption(q.localId, o.localId, { isCorrect: true })} style={{ accentColor: PRIMARY, flexShrink: 0 }} />
+                    <span style={{ width: 18, height: 18, borderRadius: "50%", flexShrink: 0, background: o.isCorrect ? "#1f8a5b" : "#d8cccc", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      {o.isCorrect && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>}
+                    </span>
                     <input
                       value={o.text}
                       onChange={(e) => updateOption(q.localId, o.localId, { text: e.target.value })}
-                      placeholder={`Opção ${q.options.indexOf(o) + 1}`}
-                      style={{ flex: 1, border: "1px solid #eadfdf", borderRadius: 7, padding: "7px 10px", fontSize: 13, fontFamily: "inherit", fontWeight: 500, color: "#16100f", background: o.isCorrect ? "#f0faf5" : "#fff", outline: "none" }}
+                      placeholder={`Opção ${oi + 1}`}
+                      style={{ flex: 1, border: `1px solid ${o.isCorrect ? "#b8e0cb" : "#eadfdf"}`, borderRadius: 7, padding: "7px 10px", fontSize: 13, fontFamily: "inherit", fontWeight: 500, color: "#16100f", background: o.isCorrect ? "#f0faf5" : "#fff", outline: "none" }}
                     />
                     {q.options.length > 2 && (
                       <button onClick={() => removeOption(q.localId, o.localId)} type="button" style={{ width: 24, height: 24, border: "none", background: "transparent", cursor: "pointer", color: "#c98a8a", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -533,7 +555,7 @@ function QuizPanel({
                     )}
                   </div>
                 ))}
-                {q.options.length < 4 && (
+                {q.options.length < 10 && (
                   <button onClick={() => addOption(q.localId)} type="button" style={{ fontSize: 12, fontWeight: 700, color: PRIMARY, background: "transparent", border: "none", cursor: "pointer", textAlign: "left", padding: "4px 0", fontFamily: "inherit" }}>
                     + Adicionar opção
                   </button>
@@ -672,7 +694,6 @@ function SortableModule({
           const isExpanded = expandedLessonId === l.id;
           const draft = quizDrafts[l.id] ?? {
             title: "",
-            minPassingScore: 70,
             maxAttempts: null,
             shuffleQuestions: false,
             showAnswersAfter: true,
@@ -821,10 +842,20 @@ export function CourseWizard({ initialCourseId, initialData, backHref, showTeach
       ? (course.objectives as string[])
       : ["Objetivo de aprendizado 1"]
   );
+  const [thumbnailUrl, setThumbnailUrl] = useState(course?.thumbnailUrl ?? "");
   const [download, setDownload] = useState(course?.allowDownload ?? true);
-  const [cert, setCert] = useState(course?.issueCertificate ?? true);
-  const [minScore, setMinScore] = useState(
-    course?.minPassingScore ? String(course.minPassingScore / 10) : "7"
+  const [certificateType, setCertificateType] = useState<"none" | "completion" | "approval">(
+    (course as { certificateType?: string } | undefined)?.certificateType === "approval"
+      ? "approval"
+      : (course as { certificateType?: string } | undefined)?.certificateType === "none"
+        ? "none"
+        : course?.issueCertificate ? "completion" : "none"
+  );
+  const [minApprovalScore, setMinApprovalScore] = useState(
+    (course as { minApprovalScore?: number } | undefined)?.minApprovalScore ?? 70
+  );
+  const [estimatedDuration, setEstimatedDuration] = useState(
+    (course as { estimatedDurationMinutes?: number } | undefined)?.estimatedDurationMinutes ?? ""
   );
   const [visibility, setVisibility] = useState<Visibility>(
     course?.isRestricted ? "restrito" : "publico"
@@ -985,7 +1016,7 @@ export function CourseWizard({ initialCourseId, initialData, backHref, showTeach
   function handleQuizDraftChange(lessonId: string, patch: Partial<QuizDraft>) {
     setQuizDrafts((prev) => ({
       ...prev,
-      [lessonId]: { ...(prev[lessonId] ?? { title: "", minPassingScore: 70, maxAttempts: null, shuffleQuestions: false, showAnswersAfter: true, questions: [] }), ...patch },
+      [lessonId]: { ...(prev[lessonId] ?? { title: "", maxAttempts: null, shuffleQuestions: false, showAnswersAfter: true, questions: [] }), ...patch },
     }));
   }
 
@@ -1019,10 +1050,13 @@ export function CourseWizard({ initialCourseId, initialData, backHref, showTeach
         description: description || undefined,
         category: category || undefined,
         level: LEVEL_UI_TO_API[level],
+        thumbnailUrl: thumbnailUrl || undefined,
         teacherId: showTeacherPicker ? selectedTeacherId : user.id,
         allowDownload: download,
-        issueCertificate: cert,
-        minPassingScore: Math.round(parseFloat(minScore || "7") * 10),
+        issueCertificate: certificateType !== "none",
+        certificateType,
+        minApprovalScore,
+        estimatedDurationMinutes: estimatedDuration ? Number(estimatedDuration) : undefined,
         objectives: objectives.filter(Boolean),
         isRestricted: visibility === "restrito",
       };
@@ -1263,6 +1297,21 @@ export function CourseWizard({ initialCourseId, initialData, backHref, showTeach
                     <input value={courseTitle} onChange={(e) => setCourseTitle(e.target.value)} placeholder="Ex.: Segurança no Trabalho" style={inputS} />
                   </div>
                   <div>
+                    <label style={labelS}>Imagem de capa (URL)</label>
+                    <input
+                      value={thumbnailUrl}
+                      onChange={(e) => setThumbnailUrl(e.target.value)}
+                      placeholder="https://exemplo.com/imagem.jpg"
+                      style={inputS}
+                    />
+                    {thumbnailUrl && (
+                      <div style={{ marginTop: 10, borderRadius: 10, overflow: "hidden", maxWidth: 300, border: "1px solid #eadfdf" }}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={thumbnailUrl} alt="Capa do curso" style={{ width: "100%", display: "block", maxHeight: 160, objectFit: "cover" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                      </div>
+                    )}
+                  </div>
+                  <div>
                     <label style={labelS}>Descrição</label>
                     <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder="O que o aluno vai aprender neste curso..." style={{ ...inputS, resize: "none" }} />
                   </div>
@@ -1392,24 +1441,55 @@ export function CourseWizard({ initialCourseId, initialData, backHref, showTeach
                     </div>
                     <Toggle on={download} onToggle={() => setDownload((v) => !v)} />
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "18px 0", borderBottom: "1px solid #f6f1f1" }}>
-                    <div>
-                      <div style={{ fontSize: 14.5, fontWeight: 700, color: "#16100f" }}>Emitir certificado ao concluir</div>
-                      <div style={{ fontSize: 13, fontWeight: 500, color: "#8a807e", marginTop: 2 }}>Certificado automático ao atingir 100%.</div>
+                  {/* Certificate type */}
+                  <div style={{ padding: "18px 0", borderBottom: "1px solid #f6f1f1" }}>
+                    <div style={{ fontSize: 14.5, fontWeight: 700, color: "#16100f", marginBottom: 12 }}>Certificado de conclusão</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                      {([
+                        { value: "none", label: "Sem certificado", desc: "Nenhum certificado será emitido." },
+                        { value: "completion", label: "Certificado por conclusão", desc: "Emitido ao concluir todas as aulas." },
+                        { value: "approval", label: "Certificado por aprovação", desc: `Emitido ao concluir com nota ≥ ${minApprovalScore}%.` },
+                      ] as const).map((opt) => (
+                        <label key={opt.value} style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "12px 14px", border: `1.5px solid ${certificateType === opt.value ? PRIMARY : "#eadfdf"}`, borderRadius: 10, cursor: "pointer", background: certificateType === opt.value ? "#fef9f9" : "#fff" }}>
+                          <input type="radio" value={opt.value} checked={certificateType === opt.value} onChange={() => setCertificateType(opt.value)} style={{ marginTop: 3, accentColor: PRIMARY, flexShrink: 0 }} />
+                          <div>
+                            <div style={{ fontSize: 14, fontWeight: 700, color: "#16100f" }}>{opt.label}</div>
+                            <div style={{ fontSize: 12.5, fontWeight: 500, color: "#8a807e", marginTop: 2 }}>{opt.desc}</div>
+                          </div>
+                        </label>
+                      ))}
                     </div>
-                    <Toggle on={cert} onToggle={() => setCert((v) => !v)} />
                   </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, padding: "20px 0" }}>
+                  {/* Scores and duration */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, padding: "20px 0", borderBottom: "1px solid #f6f1f1" }}>
                     <div>
-                      <label style={labelS}>Nota mínima no quiz (0-10)</label>
-                      <input type="number" value={minScore} onChange={(e) => setMinScore(e.target.value)} min="0" max="10" step="0.5" style={{ ...inputS, maxWidth: 160 }} />
+                      <label style={labelS}>Nota mínima de aprovação (0-100)</label>
+                      <input
+                        type="number"
+                        value={minApprovalScore}
+                        onChange={(e) => setMinApprovalScore(Number(e.target.value))}
+                        min="0" max="100"
+                        disabled={certificateType !== "approval"}
+                        style={{ ...inputS, maxWidth: 160, opacity: certificateType !== "approval" ? 0.4 : 1 }}
+                      />
                     </div>
                     <div>
-                      <label style={labelS}>Visibilidade</label>
-                      <div style={{ display: "flex", gap: 8 }}>
-                        <button onClick={() => setVisibility("publico")} type="button" style={segBtn(visibility === "publico")}>Público</button>
-                        <button onClick={() => setVisibility("restrito")} type="button" style={segBtn(visibility === "restrito")}>Restrito</button>
-                      </div>
+                      <label style={labelS}>Duração estimada (minutos)</label>
+                      <input
+                        type="number"
+                        value={estimatedDuration}
+                        onChange={(e) => setEstimatedDuration(e.target.value)}
+                        min="1"
+                        placeholder="Ex: 120"
+                        style={{ ...inputS, maxWidth: 160 }}
+                      />
+                    </div>
+                  </div>
+                  <div style={{ padding: "18px 0" }}>
+                    <label style={labelS}>Visibilidade</label>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button onClick={() => setVisibility("publico")} type="button" style={segBtn(visibility === "publico")}>Público</button>
+                      <button onClick={() => setVisibility("restrito")} type="button" style={segBtn(visibility === "restrito")}>Restrito</button>
                     </div>
                   </div>
                 </div>
@@ -1459,7 +1539,8 @@ export function CourseWizard({ initialCourseId, initialData, backHref, showTeach
                   <div style={{ padding: "24px 26px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 20 }}>
                     <div><div style={{ fontSize: 12, fontWeight: 700, color: "#a89e9c", textTransform: "uppercase", letterSpacing: "0.03em" }}>Módulos</div><div style={{ fontSize: 20, fontWeight: 800, color: "#16100f", marginTop: 4 }}>{modules.length}</div></div>
                     <div><div style={{ fontSize: 12, fontWeight: 700, color: "#a89e9c", textTransform: "uppercase", letterSpacing: "0.03em" }}>Aulas</div><div style={{ fontSize: 20, fontWeight: 800, color: "#16100f", marginTop: 4 }}>{totalLessons}</div></div>
-                    <div><div style={{ fontSize: 12, fontWeight: 700, color: "#a89e9c", textTransform: "uppercase", letterSpacing: "0.03em" }}>Certificado</div><div style={{ fontSize: 20, fontWeight: 800, color: "#16100f", marginTop: 4 }}>{cert ? "Sim" : "Não"}</div></div>
+                    <div><div style={{ fontSize: 12, fontWeight: 700, color: "#a89e9c", textTransform: "uppercase", letterSpacing: "0.03em" }}>Duração</div><div style={{ fontSize: 20, fontWeight: 800, color: "#16100f", marginTop: 4 }}>{estimatedDuration ? `${estimatedDuration} min` : "—"}</div></div>
+                    <div><div style={{ fontSize: 12, fontWeight: 700, color: "#a89e9c", textTransform: "uppercase", letterSpacing: "0.03em" }}>Certificado</div><div style={{ fontSize: 14, fontWeight: 800, color: "#16100f", marginTop: 4 }}>{{ none: "Sem certificado", completion: "Por conclusão", approval: `Aprovação ≥${minApprovalScore}%` }[certificateType]}</div></div>
                     <div><div style={{ fontSize: 12, fontWeight: 700, color: "#a89e9c", textTransform: "uppercase", letterSpacing: "0.03em" }}>Visibilidade</div><div style={{ fontSize: 20, fontWeight: 800, color: "#16100f", marginTop: 4 }}>{visibility === "publico" ? "Público" : "Restrito"}</div></div>
                   </div>
                 </div>
