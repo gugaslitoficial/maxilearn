@@ -105,47 +105,59 @@ function computeStatuses(
   return { modulesWithStatus, completedCount, nextLesson, nextLessonModuleId };
 }
 
+async function fetchCourseDetail(courseId: string): Promise<CourseDetail> {
+  const [courseRes, progressRes] = await Promise.all([
+    api.get<CourseDetailRaw>(`/courses/${courseId}`),
+    api
+      .get<{ total: number; completedCount: number; percentage: number; progress: LessonProgressRaw[] }>(
+        `/courses/${courseId}/progress`,
+      )
+      .catch(() => ({
+        data: { total: 0, completedCount: 0, percentage: 0, progress: [] as LessonProgressRaw[] },
+      })),
+  ]);
+
+  const course = courseRes.data;
+  const prog = progressRes.data;
+  const isActive = course.enrollmentStatus === "ACTIVE";
+
+  const totalLessons = course.modules.reduce((s, m) => s + m.lessons.length, 0);
+
+  const { modulesWithStatus, completedCount, nextLesson, nextLessonModuleId } =
+    computeStatuses(course.modules, prog.progress, isActive);
+
+  const progressPercent = totalLessons > 0 ? Math.round((completedCount / totalLessons) * 100) : 0;
+
+  return {
+    ...course,
+    gradient: hashGradient(course.id),
+    tag: makeTag(course.title, course.category),
+    teacherInitials: makeInitials(course.teacher.name),
+    teacherColor: hashAvatarColor(course.teacher.name),
+    progressPercent,
+    completedCount,
+    totalLessons,
+    modulesWithStatus,
+    nextLesson,
+    nextLessonModuleId,
+  } as CourseDetail;
+}
+
 export function useCourseDetail(courseId: string) {
   return useQuery({
     queryKey: ["course-detail", courseId],
-    queryFn: async () => {
-      const [courseRes, progressRes] = await Promise.all([
-        api.get<CourseDetailRaw>(`/courses/${courseId}`),
-        api
-          .get<{ total: number; completedCount: number; percentage: number; progress: LessonProgressRaw[] }>(
-            `/courses/${courseId}/progress`,
-          )
-          .catch(() => ({
-            data: { total: 0, completedCount: 0, percentage: 0, progress: [] as LessonProgressRaw[] },
-          })),
-      ]);
-
-      const course = courseRes.data;
-      const prog = progressRes.data;
-      const isActive = course.enrollmentStatus === "ACTIVE";
-
-      const totalLessons = course.modules.reduce((s, m) => s + m.lessons.length, 0);
-
-      const { modulesWithStatus, completedCount, nextLesson, nextLessonModuleId } =
-        computeStatuses(course.modules, prog.progress, isActive);
-
-      const progressPercent = totalLessons > 0 ? Math.round((completedCount / totalLessons) * 100) : 0;
-
-      return {
-        ...course,
-        gradient: hashGradient(course.id),
-        tag: makeTag(course.title, course.category),
-        teacherInitials: makeInitials(course.teacher.name),
-        teacherColor: hashAvatarColor(course.teacher.name),
-        progressPercent,
-        completedCount,
-        totalLessons,
-        modulesWithStatus,
-        nextLesson,
-        nextLessonModuleId,
-      } as CourseDetail;
-    },
+    queryFn: () => fetchCourseDetail(courseId),
     staleTime: 15_000,
+  });
+}
+
+/** Preview variant — always fetches fresh data, isolated cache key, never stale. */
+export function useCoursePreview(courseId: string) {
+  return useQuery({
+    queryKey: ["course-preview", courseId],
+    queryFn: () => fetchCourseDetail(courseId),
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 }
 

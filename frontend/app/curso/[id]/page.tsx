@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useCourseDetail } from "@/hooks/use-course-detail";
+import { useCoursePreview } from "@/hooks/use-course-detail";
 import { useAuth } from "@/hooks/use-auth";
 import { LEVEL_LABEL } from "@/lib/utils";
 import type { ApiCourseLevel } from "@/lib/utils";
@@ -27,7 +27,7 @@ function Skeleton({ w, h, radius = 8 }: { w: string | number; h: number; radius?
 
 export default function CursoPreviewPage() {
   const { id } = useParams<{ id: string }>();
-  const { data: course, isLoading } = useCourseDetail(id);
+  const { data: course, isLoading } = useCoursePreview(id);
   const { user } = useAuth();
   const router = useRouter();
 

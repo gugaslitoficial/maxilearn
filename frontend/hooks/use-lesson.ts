@@ -1,11 +1,12 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { useCourseDetail } from "./use-course-detail";
-import type { LessonRaw, LessonWithStatus, ModuleRaw, ModuleWithStatus } from "./use-course-detail";
+import { useCourseDetail, useCoursePreview } from "./use-course-detail";
+import type { LessonWithStatus, ModuleWithStatus } from "./use-course-detail";
 
-export function useLessonContext(courseId: string, lessonId: string) {
-  const query = useCourseDetail(courseId);
-
+function deriveLessonContext(
+  query: ReturnType<typeof useCourseDetail>,
+  lessonId: string,
+) {
   const derived = (() => {
     if (!query.data) return null;
     const { modulesWithStatus, totalLessons, completedCount, progressPercent } = query.data;
@@ -47,6 +48,17 @@ export function useLessonContext(courseId: string, lessonId: string) {
   })();
 
   return { ...query, derived };
+}
+
+export function useLessonContext(courseId: string, lessonId: string) {
+  const query = useCourseDetail(courseId);
+  return deriveLessonContext(query, lessonId);
+}
+
+/** Preview variant — always fetches fresh data from the database. */
+export function useLessonContextPreview(courseId: string, lessonId: string) {
+  const query = useCoursePreview(courseId);
+  return deriveLessonContext(query, lessonId);
 }
 
 export function useMarkLessonComplete(courseId: string) {

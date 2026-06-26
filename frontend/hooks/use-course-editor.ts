@@ -86,12 +86,18 @@ export function useCourseEditor(courseId: string | null) {
   });
 }
 
+function invalidateCourse(qc: ReturnType<typeof useQueryClient>, courseId: string) {
+  qc.invalidateQueries({ queryKey: ["course-editor", courseId] });
+  qc.invalidateQueries({ queryKey: ["course-detail", courseId] });
+  qc.invalidateQueries({ queryKey: ["course-preview", courseId] });
+}
+
 export function useCreateModule(courseId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (payload: CreateModulePayload) =>
       api.post<ApiModule>(`/courses/${courseId}/modules`, payload).then((r) => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["course-editor", courseId] }),
+    onSuccess: () => invalidateCourse(qc, courseId),
   });
 }
 
@@ -100,7 +106,7 @@ export function useUpdateModule(courseId: string) {
   return useMutation({
     mutationFn: ({ id, ...payload }: { id: string } & UpdateModulePayload) =>
       api.patch<ApiModule>(`/courses/${courseId}/modules/${id}`, payload).then((r) => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["course-editor", courseId] }),
+    onSuccess: () => invalidateCourse(qc, courseId),
   });
 }
 
@@ -109,7 +115,7 @@ export function useDeleteModule(courseId: string) {
   return useMutation({
     mutationFn: (moduleId: string) =>
       api.delete(`/courses/${courseId}/modules/${moduleId}`).then((r) => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["course-editor", courseId] }),
+    onSuccess: () => invalidateCourse(qc, courseId),
   });
 }
 
@@ -120,7 +126,7 @@ export function useCreateLesson(courseId: string, moduleId: string) {
       api
         .post<ApiLesson>(`/courses/${courseId}/modules/${moduleId}/lessons`, payload)
         .then((r) => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["course-editor", courseId] }),
+    onSuccess: () => invalidateCourse(qc, courseId),
   });
 }
 
@@ -131,7 +137,7 @@ export function useUpdateLesson(courseId: string, moduleId: string) {
       api
         .patch<ApiLesson>(`/courses/${courseId}/modules/${moduleId}/lessons/${id}`, payload)
         .then((r) => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["course-editor", courseId] }),
+    onSuccess: () => invalidateCourse(qc, courseId),
   });
 }
 
@@ -142,7 +148,7 @@ export function useDeleteLesson(courseId: string, moduleId: string) {
       api
         .delete(`/courses/${courseId}/modules/${moduleId}/lessons/${lessonId}`)
         .then((r) => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["course-editor", courseId] }),
+    onSuccess: () => invalidateCourse(qc, courseId),
   });
 }
 
@@ -151,6 +157,6 @@ export function useReorderModules(courseId: string) {
   return useMutation({
     mutationFn: (ids: string[]) =>
       api.patch(`/courses/${courseId}/modules/reorder`, { ids }).then((r) => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["course-editor", courseId] }),
+    onSuccess: () => invalidateCourse(qc, courseId),
   });
 }

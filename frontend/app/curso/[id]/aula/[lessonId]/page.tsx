@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useLessonContext } from "@/hooks/use-lesson";
+import { useLessonContextPreview } from "@/hooks/use-lesson";
 import { useAuth } from "@/hooks/use-auth";
 import { PlayerSidebar } from "@/components/player/PlayerSidebar";
 import { Toast } from "@/components/ui/Toast";
@@ -29,7 +29,7 @@ export default function PreviewPlayerPage() {
   const [localCompleted, setLocalCompleted] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
-  const { derived, isLoading } = useLessonContext(courseId, lessonId);
+  const { derived, isLoading } = useLessonContextPreview(courseId, lessonId);
 
   const backToEditHref = user?.role === "ADMIN"
     ? `/cursos/${courseId}/editar`
