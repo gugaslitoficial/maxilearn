@@ -68,10 +68,12 @@ model Company {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
-  users        User[]
-  courses      Course[]
-  quizzes      Quiz[]
-  certificates Certificate[]
+  users           User[]
+  courses         Course[]
+  quizzes         Quiz[]
+  certificates    Certificate[]
+  notifications   Notification[]
+  courseQuestions CourseQuestion[]
 }
 
 model User {
@@ -89,40 +91,47 @@ model User {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  company         Company          @relation(fields: [companyId], references: [id])
-  courses         Course[]         @relation("TeacherCourses")
-  enrollments     Enrollment[]
-  progress        LessonProgress[]
-  quizSubmissions QuizSubmission[]
-  certificates    Certificate[]
+  company             Company               @relation(fields: [companyId], references: [id])
+  courses             Course[]              @relation("TeacherCourses")
+  enrollments         Enrollment[]
+  progress            LessonProgress[]
+  quizSubmissions     QuizSubmission[]
+  certificates        Certificate[]
+  notifications       Notification[]
+  courseQuestions     CourseQuestion[]      @relation("QuestionAuthor")
+  questionReplies     CourseQuestionReply[] @relation("ReplyAuthor")
 
   @@index([companyId])
 }
 
 model Course {
-  id               String       @id @default(cuid())
-  title            String
-  description      String?
-  category         String?
-  level            CourseLevel  @default(BASIC)
-  thumbnailUrl     String?
-  status           CourseStatus @default(DRAFT)
-  companyId        String
-  teacherId        String
-  allowDownload    Boolean      @default(false)
-  issueCertificate Boolean      @default(false)
-  minPassingScore  Int          @default(70)
-  objectives       Json         @default("[]")
-  isRestricted     Boolean      @default(false)
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
+  id                       String       @id @default(cuid())
+  title                    String
+  description              String?
+  category                 String?
+  level                    CourseLevel  @default(BASIC)
+  thumbnailUrl             String?
+  status                   CourseStatus @default(DRAFT)
+  companyId                String
+  teacherId                String
+  allowDownload            Boolean      @default(false)
+  issueCertificate         Boolean      @default(false)
+  certificateType          String       @default("completion")
+  minPassingScore          Int          @default(70)
+  minApprovalScore         Int          @default(70)
+  estimatedDurationMinutes Int?
+  objectives               Json         @default("[]")
+  isRestricted             Boolean      @default(false)
+  createdAt                DateTime     @default(now())
+  updatedAt                DateTime     @updatedAt
 
-  company      Company        @relation(fields: [companyId], references: [id])
-  teacher      User           @relation("TeacherCourses", fields: [teacherId], references: [id])
-  modules      Module[]
-  enrollments  Enrollment[]
-  quizzes      Quiz[]
-  certificates Certificate[]
+  company         Company          @relation(fields: [companyId], references: [id])
+  teacher         User             @relation("TeacherCourses", fields: [teacherId], references: [id])
+  modules         Module[]
+  enrollments     Enrollment[]
+  quizzes         Quiz[]
+  certificates    Certificate[]
+  courseQuestions CourseQuestion[]
 
   @@index([companyId])
   @@index([teacherId])
@@ -154,9 +163,10 @@ model Lesson {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  module   Module           @relation(fields: [moduleId], references: [id], onDelete: Cascade)
-  progress LessonProgress[]
-  quiz     Quiz?            @relation("LessonQuiz")
+  module          Module           @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  progress        LessonProgress[]
+  quiz            Quiz?            @relation("LessonQuiz")
+  courseQuestions CourseQuestion[]
 
   @@index([moduleId])
 }
@@ -217,12 +227,13 @@ model Quiz {
 }
 
 model Question {
-  id        String       @id @default(cuid())
-  quizId    String
-  statement String
-  type      QuestionType
-  order     Int
-  options   Json
+  id           String       @id @default(cuid())
+  quizId       String
+  statement    String
+  type         QuestionType
+  order        Int
+  options      Json
+  displayCount Int?
 
   quiz Quiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
 
@@ -268,4 +279,56 @@ model Certificate {
   @@index([studentId])
   @@index([courseId])
   @@index([companyId])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  companyId String
+  type      String
+  title     String
+  body      String?
+  metadata  Json?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@index([userId])
+  @@index([companyId])
+}
+
+model CourseQuestion {
+  id        String   @id @default(cuid())
+  courseId  String
+  lessonId  String
+  authorId  String
+  companyId String
+  question  String
+  createdAt DateTime @default(now())
+
+  course   Course                @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lesson   Lesson                @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  author   User                  @relation("QuestionAuthor", fields: [authorId], references: [id])
+  company  Company               @relation(fields: [companyId], references: [id])
+  replies  CourseQuestionReply[]
+
+  @@index([lessonId])
+  @@index([authorId])
+  @@index([companyId])
+}
+
+model CourseQuestionReply {
+  id         String   @id @default(cuid())
+  questionId String
+  authorId   String
+  body       String
+  createdAt  DateTime @default(now())
+
+  question CourseQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  author   User           @relation("ReplyAuthor", fields: [authorId], references: [id])
+
+  @@index([questionId])
+  @@index([authorId])
 }
