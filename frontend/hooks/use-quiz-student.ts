@@ -11,6 +11,7 @@ export interface QuizQuestion {
   statement: string;
   type: string;
   order: number;
+  displayCount?: number;
   options: QuizOption[];
 }
 
@@ -53,7 +54,7 @@ export interface SubmitResult {
   answers?: AnswerDetail[];
 }
 
-export function useQuizStudent(quizId: string) {
+export function useQuizStudent(quizId: string | null) {
   return useQuery({
     queryKey: ["quiz-student", quizId],
     queryFn: async () => {
@@ -61,6 +62,20 @@ export function useQuizStudent(quizId: string) {
       return data;
     },
     staleTime: 10_000,
+    enabled: !!quizId,
+  });
+}
+
+export function useSubmitQuizById(quizId: string | null) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (answers: AnswerInput[]) =>
+      api.post<SubmitResult>(`/quizzes/${quizId}/submit`, { answers }).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["quiz-student", quizId] });
+      qc.invalidateQueries({ queryKey: ["student-overview"] });
+      qc.invalidateQueries({ queryKey: ["student-certificates"] });
+    },
   });
 }
 

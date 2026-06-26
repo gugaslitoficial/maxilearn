@@ -39,6 +39,9 @@ export interface CourseDetailRaw {
   objectives: string[];
   issueCertificate: boolean;
   minPassingScore: number;
+  certificateType?: string;
+  minApprovalScore?: number;
+  estimatedDurationMinutes?: number;
   isRestricted: boolean;
   teacher: { id: string; name: string; avatarUrl: string | null };
   _count: { modules: number; enrollments: number };
