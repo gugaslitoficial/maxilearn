@@ -252,7 +252,7 @@ export default function CursosPage() {
                       <Stat label="Módulos" value={String(course._count.modules)} />
                       <Stat label="Alunos" value={String(course._count.enrollments)} />
                       <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
-                        <CourseBtn icon={<Eye size={14} />} label="Ver" onClick={() => setToast("Visualizando curso")} />
+                        <CourseBtn icon={<Eye size={14} />} label="Ver" onClick={() => router.push(`/aluno/curso/${course.id}`)} />
                         <CourseBtn icon={<Pencil size={13} />} label="Editar" onClick={() => router.push(`/cursos/${course.id}/editar`)} />
                         <CourseBtn icon={<Trash2 size={13} />} label="Arquivar" danger onClick={() => setDeleteTarget(course)} />
                       </div>
@@ -303,7 +303,7 @@ export default function CursosPage() {
                         </td>
                         <td style={{ padding: "14px 16px" }}>
                           <div style={{ display: "flex", gap: 6 }}>
-                            <CourseBtn icon={<Eye size={14} />} label="Ver" onClick={() => setToast("Visualizando curso")} />
+                            <CourseBtn icon={<Eye size={14} />} label="Ver" onClick={() => router.push(`/aluno/curso/${c.id}`)} />
                             <CourseBtn icon={<Pencil size={13} />} label="Editar" onClick={() => router.push(`/cursos/${c.id}/editar`)} />
                             <CourseBtn icon={<Trash2 size={13} />} label="Arquivar" danger onClick={() => setDeleteTarget(c)} />
                           </div>
