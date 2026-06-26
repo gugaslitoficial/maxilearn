@@ -149,12 +149,14 @@ model Lesson {
   durationMinutes Int?
   order           Int
   isFree          Boolean  @default(false)
+  materials       Json     @default("[]")
   moduleId        String
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   module   Module           @relation(fields: [moduleId], references: [id], onDelete: Cascade)
   progress LessonProgress[]
+  quiz     Quiz?            @relation("LessonQuiz")
 
   @@index([moduleId])
 }
@@ -195,6 +197,7 @@ model Quiz {
   title            String
   courseId         String
   companyId        String
+  lessonId         String?    @unique
   minPassingScore  Int        @default(70)
   maxAttempts      Int?
   shuffleQuestions Boolean    @default(false)
@@ -205,6 +208,7 @@ model Quiz {
 
   course      Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
   company     Company          @relation(fields: [companyId], references: [id])
+  lesson      Lesson?          @relation("LessonQuiz", fields: [lessonId], references: [id], onDelete: SetNull)
   questions   Question[]
   submissions QuizSubmission[]
 

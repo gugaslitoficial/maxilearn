@@ -36,4 +36,8 @@ export class UpdateQuizDto {
   @IsEnum(QuizStatus)
   @IsOptional()
   status?: QuizStatus;
+
+  @IsString()
+  @IsOptional()
+  lessonId?: string;
 }

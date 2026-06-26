@@ -96,7 +96,7 @@ export default function AulaEditorPage() {
         setLessonTitle(lesson.title ?? "");
         setLessonDesc(lesson.description ?? "");
         setVideoUrl(lesson.videoUrl ?? "");
-        setFreePreview(lesson.isFreePreview ?? false);
+        setFreePreview(lesson.isFree ?? false);
         setDurationMinutes(lesson.durationMinutes != null ? String(lesson.durationMinutes) : "");
         break;
       }

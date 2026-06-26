@@ -23,6 +23,10 @@ export class CreateQuizDto {
   @IsNotEmpty()
   courseId: string;
 
+  @IsString()
+  @IsOptional()
+  lessonId?: string;
+
   @IsInt()
   @Min(0)
   @Max(100)

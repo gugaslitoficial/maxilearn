@@ -266,6 +266,7 @@ export class QuizzesService {
         title: dto.title,
         courseId: dto.courseId,
         companyId: user.companyId,
+        lessonId: dto.lessonId ?? null,
         minPassingScore: dto.minPassingScore ?? 70,
         maxAttempts: dto.maxAttempts ?? null,
         shuffleQuestions: dto.shuffleQuestions ?? false,

@@ -1,10 +1,10 @@
 import {
+  IsArray,
   IsBoolean,
   IsIn,
   IsNumber,
   IsOptional,
   IsString,
-  IsUrl,
   Min,
 } from 'class-validator';
 
@@ -21,7 +21,7 @@ export class UpdateLessonDto {
   @IsOptional()
   type?: string;
 
-  @IsUrl()
+  @IsString()
   @IsOptional()
   videoUrl?: string;
 
@@ -33,4 +33,8 @@ export class UpdateLessonDto {
   @IsBoolean()
   @IsOptional()
   isFree?: boolean;
+
+  @IsArray()
+  @IsOptional()
+  materials?: unknown[];
 }

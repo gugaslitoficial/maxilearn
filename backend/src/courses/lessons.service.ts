@@ -27,6 +27,7 @@ export class LessonsService {
     return this.prisma.lesson.findMany({
       where: { moduleId },
       orderBy: { order: 'asc' },
+      include: { quiz: { select: { id: true, title: true } } },
     });
   }
 
@@ -47,6 +48,7 @@ export class LessonsService {
         videoUrl: dto.videoUrl,
         durationMinutes: dto.durationMinutes,
         isFree: dto.isFree ?? false,
+        materials: (dto.materials ?? []) as object[],
         moduleId,
         order: (last?.order ?? 0) + 1,
       },
@@ -63,7 +65,14 @@ export class LessonsService {
     await this.assertModuleAccess(courseId, moduleId, user);
     const lesson = await this.prisma.lesson.findFirst({ where: { id: lessonId, moduleId } });
     if (!lesson) throw new NotFoundException('Lesson not found');
-    return this.prisma.lesson.update({ where: { id: lessonId }, data: dto });
+    const { materials, ...rest } = dto;
+    return this.prisma.lesson.update({
+      where: { id: lessonId },
+      data: {
+        ...rest,
+        ...(materials !== undefined ? { materials: materials as object[] } : {}),
+      },
+    });
   }
 
   async reorder(courseId: string, moduleId: string, user: AuthenticatedUser, dto: ReorderDto) {

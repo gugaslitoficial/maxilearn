@@ -9,9 +9,11 @@ export interface ApiLesson {
   videoUrl: string | null;
   durationMinutes: number | null;
   order: number;
-  isFreePreview: boolean;
+  isFree: boolean;
   type: string;
   moduleId: string;
+  materials: unknown;
+  quiz: { id: string; title: string } | null;
 }
 
 export interface ApiModule {
@@ -50,11 +52,12 @@ export interface CreateLessonPayload {
 export interface UpdateLessonPayload {
   title?: string;
   description?: string;
-  videoUrl?: string;
-  isFreePreview?: boolean;
-  durationMinutes?: number;
+  videoUrl?: string | null;
+  isFree?: boolean;
+  durationMinutes?: number | null;
   order?: number;
   type?: string;
+  materials?: unknown[];
 }
 
 async function fetchCourseWithModules(courseId: string): Promise<CourseEditorData> {
