@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useId, useRef, useCallback } from "react";
+import { useState, useId, useRef, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   DndContext,
@@ -784,6 +784,8 @@ export function CourseWizard({ initialCourseId, initialData, backHref, showTeach
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const [savedCourseId, setSavedCourseId] = useState<string | null>(initialCourseId ?? null);
+  const [courseStatus, setCourseStatus] = useState<string>(initialData?.course.status ?? "DRAFT");
+  const [saveToast, setSaveToast] = useState(false);
   const [moduleApiIds] = useState<Record<string, string>>(() => {
     if (initialData) return Object.fromEntries(initialData.modules.map((m) => [m.id, m.id]));
     return {};
@@ -849,6 +851,10 @@ export function CourseWizard({ initialCourseId, initialData, backHref, showTeach
     }
     return [];
   });
+
+  useEffect(() => {
+    if (initialData?.course.status) setCourseStatus(initialData.course.status);
+  }, [initialData?.course.status]);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -1058,14 +1064,21 @@ export function CourseWizard({ initialCourseId, initialData, backHref, showTeach
       Object.assign(lessonApiIdsRef.current, localLessonIds);
 
       if (publish) {
-        await api.patch(`/courses/${cId}/status`, { status: "PUBLISHED" });
+        if (courseStatus === "PUBLISHED") {
+          setSaveToast(true);
+          setTimeout(() => setSaveToast(false), 3000);
+        } else {
+          // DRAFT → PUBLISHED or ARCHIVED → PUBLISHED
+          await api.patch(`/courses/${cId}/status`, { status: "PUBLISHED" });
+          setCourseStatus("PUBLISHED");
+        }
       }
 
       qc.invalidateQueries({ queryKey: ["courses-professor"] });
       qc.invalidateQueries({ queryKey: ["courses-admin"] });
       qc.invalidateQueries({ queryKey: ["course-editor", cId] });
 
-      if (publish) {
+      if (publish && courseStatus !== "PUBLISHED") {
         router.push(backHref ?? "/professor/cursos");
       }
     } catch (err: unknown) {
@@ -1144,7 +1157,7 @@ export function CourseWizard({ initialCourseId, initialData, backHref, showTeach
               style={{ display: "inline-flex", alignItems: "center", gap: 7, fontFamily: "inherit", fontSize: 13.5, fontWeight: 800, color: "#fff", background: PRIMARY, border: "none", borderRadius: 10, padding: "11px 18px", cursor: "pointer", boxShadow: "0 6px 16px rgba(204,31,31,0.26)" }}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-              Publicar
+              {courseStatus === "PUBLISHED" ? "Salvar" : courseStatus === "ARCHIVED" ? "Reativar" : "Publicar"}
             </button>
           </div>
         </header>
@@ -1344,13 +1357,34 @@ export function CourseWizard({ initialCourseId, initialData, backHref, showTeach
             {/* Step 4 — Review */}
             {step === 3 && (
               <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-                <div>
-                  <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em", color: "#16100f" }}>Revisão e publicação</h2>
-                  <p style={{ fontSize: 14, fontWeight: 500, color: "#8a807e", marginTop: 4 }}>Confira tudo antes de publicar para os alunos.</p>
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+                  <div>
+                    <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em", color: "#16100f" }}>Revisão e publicação</h2>
+                    <p style={{ fontSize: 14, fontWeight: 500, color: "#8a807e", marginTop: 4 }}>Confira tudo antes de publicar para os alunos.</p>
+                  </div>
+                  {(() => {
+                    const statusMeta: Record<string, { label: string; bg: string; color: string; border: string }> = {
+                      DRAFT:     { label: "Rascunho",  bg: "#fffbeb", color: "#92400e", border: "#fcd34d" },
+                      PUBLISHED: { label: "Publicado", bg: "#ecfdf5", color: "#065f46", border: "#6ee7b7" },
+                      ARCHIVED:  { label: "Arquivado", bg: "#f3f4f6", color: "#374151", border: "#d1d5db" },
+                    };
+                    const m = statusMeta[courseStatus] ?? statusMeta.DRAFT;
+                    return (
+                      <span style={{ fontSize: 12.5, fontWeight: 800, padding: "5px 12px", borderRadius: 100, background: m.bg, color: m.color, border: `1.5px solid ${m.border}`, letterSpacing: "0.02em", alignSelf: "flex-start" }}>
+                        {m.label}
+                      </span>
+                    );
+                  })()}
                 </div>
                 {saveError && (
                   <div style={{ background: "#fceeee", border: "1px solid #f6d6d6", borderRadius: 12, padding: "14px 18px", fontSize: 14, fontWeight: 600, color: PRIMARY }}>
                     {saveError}
+                  </div>
+                )}
+                {saveToast && (
+                  <div style={{ background: "#ecfdf5", border: "1px solid #6ee7b7", borderRadius: 12, padding: "14px 18px", fontSize: 14, fontWeight: 600, color: "#065f46", display: "flex", alignItems: "center", gap: 10 }}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                    Alterações salvas com sucesso!
                   </div>
                 )}
                 <div style={{ background: "#fff", border: "1px solid #ece4e4", borderRadius: 16, overflow: "hidden" }}>
@@ -1368,12 +1402,24 @@ export function CourseWizard({ initialCourseId, initialData, backHref, showTeach
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
-                  <button onClick={() => saveCourse(false)} disabled={isSaving} style={{ fontFamily: "inherit", fontSize: 14.5, fontWeight: 700, color: "#16100f", background: "#fff", border: "1.5px solid #e2d9d9", borderRadius: 11, padding: "13px 22px", cursor: "pointer" }}>
-                    {isSaving ? "Salvando…" : "Salvar rascunho"}
-                  </button>
+                  {courseStatus !== "PUBLISHED" && (
+                    <button onClick={() => saveCourse(false)} disabled={isSaving} style={{ fontFamily: "inherit", fontSize: 14.5, fontWeight: 700, color: "#16100f", background: "#fff", border: "1.5px solid #e2d9d9", borderRadius: 11, padding: "13px 22px", cursor: "pointer" }}>
+                      {isSaving ? "Salvando…" : "Salvar rascunho"}
+                    </button>
+                  )}
                   <button onClick={() => saveCourse(true)} disabled={isSaving} style={{ display: "inline-flex", alignItems: "center", gap: 8, fontFamily: "inherit", fontSize: 14.5, fontWeight: 800, color: "#fff", background: PRIMARY, border: "none", borderRadius: 11, padding: "13px 24px", cursor: "pointer", boxShadow: "0 10px 24px rgba(204,31,31,0.26)" }}>
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
-                    {isSaving ? "Publicando…" : "Publicar curso"}
+                    {courseStatus === "PUBLISHED" ? (
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v14a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                    ) : (
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                    )}
+                    {isSaving
+                      ? "Salvando…"
+                      : courseStatus === "PUBLISHED"
+                        ? "Salvar alterações"
+                        : courseStatus === "ARCHIVED"
+                          ? "Reativar curso"
+                          : "Publicar curso"}
                   </button>
                 </div>
               </div>

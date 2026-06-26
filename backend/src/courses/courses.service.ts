@@ -35,7 +35,7 @@ const COURSE_SELECT = {
 const ALLOWED_TRANSITIONS: Record<CourseStatus, CourseStatus[]> = {
   DRAFT: [CourseStatus.PUBLISHED],
   PUBLISHED: [CourseStatus.ARCHIVED],
-  ARCHIVED: [],
+  ARCHIVED: [CourseStatus.PUBLISHED],
 };
 
 @Injectable()
@@ -177,6 +177,9 @@ export class CoursesService {
 
   async updateStatus(courseId: string, user: AuthenticatedUser, dto: UpdateStatusDto) {
     const course = await this.assertMutateAccess(courseId, user);
+    if (course.status === dto.status) {
+      return this.prisma.course.findUnique({ where: { id: courseId }, select: COURSE_SELECT });
+    }
     const allowed = ALLOWED_TRANSITIONS[course.status];
     if (!allowed.includes(dto.status)) {
       throw new ForbiddenException(`Cannot transition from ${course.status} to ${dto.status}`);
