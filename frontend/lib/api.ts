@@ -21,7 +21,12 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (res) => res,
   (error: AxiosError) => {
-    if (error.response?.status === 401 && typeof window !== "undefined") {
+    const is401 = error.response?.status === 401;
+    const alreadyOnLogin =
+      typeof window !== "undefined" && window.location.pathname === "/login";
+    // Only redirect if a token existed in memory (real session expiry), not
+    // during the async session-restore window where inMemoryToken is still null.
+    if (is401 && !alreadyOnLogin && inMemoryToken !== null) {
       window.location.href = "/login";
     }
     return Promise.reject(error);
