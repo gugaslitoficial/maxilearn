@@ -5,10 +5,10 @@ import type React from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Search, LayoutGrid, List, Pencil, Trash2, Eye, Users } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
-import { Modal } from "@/components/ui/Modal";
 import { Toast } from "@/components/ui/Toast";
 import {
   useCoursesAdmin,
+  useArchiveCourse,
   useDeleteCourse,
 } from "@/hooks/use-courses-admin";
 import type { ApiCourse } from "@/hooks/use-courses-admin";
@@ -83,6 +83,7 @@ export default function CursosPage() {
     perPage: 50,
   });
 
+  const archiveCourse = useArchiveCourse();
   const deleteCourse = useDeleteCourse();
 
   // Derive unique categories from loaded data
@@ -96,12 +97,23 @@ export default function CursosPage() {
     return data?.data ?? [];
   }, [data?.data]);
 
+  async function handleArchive() {
+    if (!deleteTarget) return;
+    try {
+      await archiveCourse.mutateAsync(deleteTarget.id);
+      setDeleteTarget(null);
+      setToast("Curso arquivado.");
+    } catch (err) {
+      setToast(getErrorMessage(err));
+    }
+  }
+
   async function handleDelete() {
     if (!deleteTarget) return;
     try {
       await deleteCourse.mutateAsync(deleteTarget.id);
       setDeleteTarget(null);
-      setToast("Curso arquivado.");
+      setToast("Curso excluído permanentemente.");
     } catch (err) {
       setToast(getErrorMessage(err));
     }
@@ -327,25 +339,58 @@ export default function CursosPage() {
         )}
       </div>
 
-      {/* Delete Modal */}
-      <Modal
-        open={!!deleteTarget}
-        onClose={() => setDeleteTarget(null)}
-        title="Arquivar curso"
-        subtitle="O curso será arquivado e ficará invisível para os alunos."
-        footer={
-          <>
-            <button onClick={() => setDeleteTarget(null)} style={cancelBtnStyle}>Cancelar</button>
-            <button onClick={handleDelete} disabled={deleteCourse.isPending} style={{ ...confirmBtnStyle, background: "#cc2a2a" }}>
-              {deleteCourse.isPending ? "Arquivando..." : "Sim, arquivar"}
-            </button>
-          </>
-        }
-      >
-        <p style={{ fontSize: 14, fontWeight: 500, color: "#6a605e", lineHeight: 1.6 }}>
-          O curso <strong>{deleteTarget?.title}</strong> será arquivado. Os dados de progresso dos alunos serão preservados.
-        </p>
-      </Modal>
+      {/* Delete Modal — 3-button */}
+      {deleteTarget && (
+        <div
+          style={{ position: "fixed", inset: 0, background: "rgba(20,10,10,0.5)", backdropFilter: "blur(2px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, zIndex: 50 }}
+          onClick={() => setDeleteTarget(null)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ background: "#fff", borderRadius: 18, width: "100%", maxWidth: 440, boxShadow: "0 30px 70px rgba(0,0,0,0.28)", overflow: "hidden" }}
+          >
+            <div style={{ padding: "28px 28px 0" }}>
+              <div style={{ width: 52, height: 52, borderRadius: 14, background: "#fceeee", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+                <Trash2 size={22} color={PRIMARY} />
+              </div>
+              <h2 style={{ fontSize: 19, fontWeight: 800, letterSpacing: "-0.02em", color: "#16100f", textAlign: "center", marginBottom: 10 }}>
+                O que deseja fazer com o curso?
+              </h2>
+              <p style={{ fontSize: 14, fontWeight: 500, color: "#6a605e", lineHeight: 1.6, textAlign: "center", marginBottom: 6 }}>
+                <strong>{deleteTarget.title}</strong>
+              </p>
+              <div style={{ background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: 10, padding: "10px 14px", marginTop: 12, marginBottom: 4, display: "flex", gap: 8, alignItems: "flex-start" }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#92400e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 1 }}><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+                <span style={{ fontSize: 13, fontWeight: 600, color: "#92400e", lineHeight: 1.5 }}>
+                  A exclusão permanente removerá todos os dados de progresso dos alunos e não poderá ser desfeita.
+                </span>
+              </div>
+            </div>
+            <div style={{ padding: "20px 28px 28px", display: "flex", flexDirection: "column", gap: 10 }}>
+              <button
+                onClick={() => setDeleteTarget(null)}
+                style={{ width: "100%", fontFamily: "inherit", fontSize: 14.5, fontWeight: 700, color: "#16100f", background: "#fff", border: "1.5px solid #e2d9d9", borderRadius: 11, padding: 13, cursor: "pointer" }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleArchive}
+                disabled={archiveCourse.isPending}
+                style={{ width: "100%", fontFamily: "inherit", fontSize: 14.5, fontWeight: 700, color: "#92400e", background: "#fffbeb", border: "1.5px solid #fcd34d", borderRadius: 11, padding: 13, cursor: "pointer" }}
+              >
+                {archiveCourse.isPending ? "Arquivando..." : "Arquivar (ocultar dos alunos)"}
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleteCourse.isPending}
+                style={{ width: "100%", fontFamily: "inherit", fontSize: 14.5, fontWeight: 800, color: "#fff", background: PRIMARY, border: "none", borderRadius: 11, padding: 13, cursor: "pointer", boxShadow: "0 4px 12px rgba(204,31,31,0.22)" }}
+              >
+                {deleteCourse.isPending ? "Excluindo..." : "Excluir permanentemente"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Toast message={toast} onDismiss={() => setToast(null)} />
     </>

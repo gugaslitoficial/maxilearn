@@ -9,14 +9,22 @@ import {
   useRejectEnrollment,
   useRevokeEnrollment,
   useBulkApproveEnrollments,
+  useDirectEnroll,
 } from "@/hooks/use-enrollments";
 import type { ApiEnrollment, EnrollmentsPage, PendingEnrollmentsResult } from "@/hooks/use-enrollments";
 import { hashAvatarColor, makeInitials } from "@/lib/utils";
 import { Toast } from "@/components/ui/Toast";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, UserPlus, Search } from "lucide-react";
 
 type ModalType = "approveAll" | "reject" | "revoke";
 interface ModalState { type: ModalType; enrollmentId?: string; name?: string }
+
+interface StudentUser {
+  id: string;
+  name: string;
+  email: string;
+  avatarUrl: string | null;
+}
 
 function Sk({ w, h, r = 8 }: { w?: number | string; h: number; r?: number }) {
   return (
@@ -68,6 +76,9 @@ export default function AdminMatriculasPage() {
   const router = useRouter();
   const [modal, setModal] = useState<ModalState | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [addStudentOpen, setAddStudentOpen] = useState(false);
+  const [studentSearch, setStudentSearch] = useState("");
+  const [addingStudentId, setAddingStudentId] = useState<string | null>(null);
 
   const { data: course } = useCourseInfo(id);
   const { data: pendingData, isLoading: loadingPending } = useCoursePendingEnrollments(id);
@@ -77,9 +88,36 @@ export default function AdminMatriculasPage() {
   const rejectMut = useRejectEnrollment();
   const revokeMut = useRevokeEnrollment();
   const bulkMut = useBulkApproveEnrollments();
+  const directEnroll = useDirectEnroll(id);
+
+  const { data: studentsData } = useQuery({
+    queryKey: ["students-search", studentSearch],
+    queryFn: async () => {
+      const { data } = await api.get<{ data: StudentUser[]; total: number }>("/users", {
+        params: { role: "STUDENT", search: studentSearch || undefined, perPage: 20 },
+      });
+      return data;
+    },
+    enabled: addStudentOpen,
+    staleTime: 10_000,
+  });
 
   const pending: ApiEnrollment[] = pendingData?.data ?? [];
   const active: ApiEnrollment[] = activeData?.data ?? [];
+  const enrolledIds = new Set([...pending, ...active].map((e) => e.student.id));
+  const availableStudents = (studentsData?.data ?? []).filter((s) => !enrolledIds.has(s.id));
+
+  async function handleAddStudent(studentId: string, studentName: string) {
+    setAddingStudentId(studentId);
+    try {
+      await directEnroll.mutateAsync(studentId);
+      setToast(`${studentName} matriculado com acesso ativo.`);
+    } catch {
+      setToast("Erro ao matricular aluno.");
+    } finally {
+      setAddingStudentId(null);
+    }
+  }
 
   const isConfirming = approveMut.isPending || rejectMut.isPending || revokeMut.isPending || bulkMut.isPending;
 
@@ -165,6 +203,13 @@ export default function AdminMatriculasPage() {
             <div style={{ fontSize: 22, fontWeight: 800, color: "#16100f" }}>{activeData?.total ?? 0}</div>
             <div style={{ fontSize: 12, fontWeight: 700, color: "#1f8a5b" }}>Ativos</div>
           </div>
+          <button
+            onClick={() => setAddStudentOpen(true)}
+            style={{ display: "inline-flex", alignItems: "center", gap: 8, fontFamily: "inherit", fontSize: 14, fontWeight: 700, color: "#fff", background: "#CC1F1F", border: "none", borderRadius: 10, padding: "10px 16px", cursor: "pointer", boxShadow: "0 4px 12px rgba(204,31,31,0.22)", flexShrink: 0 }}
+          >
+            <UserPlus size={15} />
+            Adicionar aluno
+          </button>
         </div>
       </header>
 
@@ -350,6 +395,69 @@ export default function AdminMatriculasPage() {
                 style={{ flex: 1, fontFamily: "inherit", fontSize: 14.5, fontWeight: 800, color: "#fff", background: modal.type === "approveAll" ? "#1f8a5b" : "#CC1F1F", border: "none", borderRadius: 11, padding: 13, cursor: "pointer" }}
               >
                 {isConfirming ? "Aguarde…" : modal.type === "approveAll" ? "Liberar todos" : modal.type === "reject" ? "Rejeitar" : "Revogar acesso"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Student Modal */}
+      {addStudentOpen && (
+        <div
+          style={{ position: "fixed", inset: 0, background: "rgba(20,10,10,0.45)", backdropFilter: "blur(2px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, zIndex: 50 }}
+          onClick={() => setAddStudentOpen(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ background: "#fff", borderRadius: 18, width: "100%", maxWidth: 480, maxHeight: "80vh", boxShadow: "0 30px 70px rgba(0,0,0,0.28)", display: "flex", flexDirection: "column", overflow: "hidden" }}
+          >
+            <div style={{ padding: "24px 24px 16px", borderBottom: "1px solid #ece4e4" }}>
+              <h2 style={{ fontSize: 18, fontWeight: 800, color: "#16100f", marginBottom: 12 }}>Adicionar aluno ao curso</h2>
+              <div style={{ position: "relative" }}>
+                <Search size={15} color="#a89e9c" style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
+                <input
+                  placeholder="Buscar aluno por nome ou e-mail..."
+                  value={studentSearch}
+                  onChange={(e) => setStudentSearch(e.target.value)}
+                  autoFocus
+                  style={{ width: "100%", padding: "10px 13px 10px 36px", border: "1.5px solid #ece4e4", borderRadius: 10, fontSize: 14, fontFamily: "inherit", fontWeight: 500, color: "#16100f", background: "#fdfbfb", outline: "none", boxSizing: "border-box" as const }}
+                />
+              </div>
+            </div>
+            <div style={{ flex: 1, overflowY: "auto", padding: "12px 16px" }}>
+              {availableStudents.length === 0 ? (
+                <div style={{ padding: "32px 20px", textAlign: "center", fontSize: 14, fontWeight: 600, color: "#a89e9c" }}>
+                  {studentSearch ? "Nenhum aluno encontrado." : "Todos os alunos já estão matriculados."}
+                </div>
+              ) : availableStudents.map((s) => {
+                const initials = makeInitials(s.name);
+                const color = hashAvatarColor(s.id);
+                return (
+                  <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", border: "1px solid #f0e8e8", borderRadius: 12, marginBottom: 8 }}>
+                    <div style={{ width: 38, height: 38, borderRadius: "50%", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, color: "#fff", background: color }}>
+                      {initials}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: "#16100f" }}>{s.name}</div>
+                      <div style={{ fontSize: 12.5, fontWeight: 500, color: "#8a807e", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.email}</div>
+                    </div>
+                    <button
+                      onClick={() => handleAddStudent(s.id, s.name)}
+                      disabled={addingStudentId === s.id}
+                      style={{ fontFamily: "inherit", fontSize: 13, fontWeight: 700, color: "#fff", background: "#CC1F1F", border: "none", borderRadius: 9, padding: "8px 14px", cursor: "pointer", flexShrink: 0, opacity: addingStudentId === s.id ? 0.7 : 1 }}
+                    >
+                      {addingStudentId === s.id ? "..." : "Matricular"}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ padding: "14px 24px", borderTop: "1px solid #ece4e4" }}>
+              <button
+                onClick={() => setAddStudentOpen(false)}
+                style={{ width: "100%", fontFamily: "inherit", fontSize: 14, fontWeight: 700, color: "#16100f", background: "#f6f1f1", border: "none", borderRadius: 10, padding: "11px", cursor: "pointer" }}
+              >
+                Fechar
               </button>
             </div>
           </div>

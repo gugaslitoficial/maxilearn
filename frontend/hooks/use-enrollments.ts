@@ -105,3 +105,15 @@ export function useBulkApproveEnrollments() {
     },
   });
 }
+
+export function useDirectEnroll(courseId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (studentId: string) =>
+      api.post(`/courses/${courseId}/enrollments`, { studentId }).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["enrollments-active"] });
+      qc.invalidateQueries({ queryKey: ["enrollments-pending-course", courseId] });
+    },
+  });
+}

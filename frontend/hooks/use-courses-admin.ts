@@ -76,6 +76,15 @@ export function useUpdateCourseStatus() {
   });
 }
 
+export function useArchiveCourse() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      api.patch<ApiCourse>(`/courses/${id}/status`, { status: "ARCHIVED" }).then((r) => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["courses-admin"] }),
+  });
+}
+
 export function useDeleteCourse() {
   const qc = useQueryClient();
   return useMutation({
