@@ -57,7 +57,6 @@ export function useQuizzes(filter: { page?: number; perPage?: number; courseId?:
       return data;
     },
     placeholderData: (prev) => prev,
-    retry: 1,
   });
 }
 

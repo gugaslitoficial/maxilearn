@@ -56,8 +56,8 @@ export function useNotifications() {
   const isProfessorOrAdmin = role === "PROFESSOR" || role === "ADMIN";
   const isStudent = role === "STUDENT";
 
-  const pendingQ = usePendingEnrollments();
-  const certsQ = useCertificates();
+  const pendingQ = usePendingEnrollments({ enabled: !!user && isProfessorOrAdmin });
+  const certsQ = useCertificates({ enabled: !!user && isStudent });
 
   const notifications = useMemo<AppNotification[]>(() => {
     const items: AppNotification[] = [];

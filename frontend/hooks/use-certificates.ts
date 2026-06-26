@@ -23,7 +23,7 @@ export interface Certificate {
   company: CertificateCompany;
 }
 
-export function useCertificates() {
+export function useCertificates(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["student-certificates"],
     queryFn: async () => {
@@ -34,6 +34,6 @@ export function useCertificates() {
       return data;
     },
     staleTime: 30_000,
-    retry: 1,
+    enabled: options?.enabled ?? true,
   });
 }

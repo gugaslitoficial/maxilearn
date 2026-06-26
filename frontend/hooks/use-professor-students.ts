@@ -35,6 +35,5 @@ export function useProfessorStudents(courseId?: string) {
       return data;
     },
     placeholderData: (prev) => prev,
-    retry: 1,
   });
 }

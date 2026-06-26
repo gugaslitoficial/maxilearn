@@ -35,7 +35,7 @@ export interface EnrollmentsPage {
   totalPages: number;
 }
 
-export function usePendingEnrollments() {
+export function usePendingEnrollments(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["enrollments-pending"],
     queryFn: async () => {
@@ -43,7 +43,7 @@ export function usePendingEnrollments() {
       return data;
     },
     staleTime: 15_000,
-    retry: 1,
+    enabled: options?.enabled ?? true,
   });
 }
 
@@ -57,7 +57,6 @@ export function useActiveEnrollments(courseId?: string) {
       return data;
     },
     placeholderData: (prev) => prev,
-    retry: 1,
   });
 }
 

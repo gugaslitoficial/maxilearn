@@ -22,6 +22,5 @@ export function useStudentOverview() {
       return data;
     },
     staleTime: 30_000,
-    retry: 1,
   });
 }

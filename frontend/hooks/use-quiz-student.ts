@@ -60,7 +60,6 @@ export function useQuizStudent(quizId: string) {
       const { data } = await api.get<StudentQuiz>(`/quizzes/${quizId}`);
       return data;
     },
-    retry: 1,
     staleTime: 10_000,
   });
 }

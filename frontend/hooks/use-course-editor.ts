@@ -79,7 +79,6 @@ export function useCourseEditor(courseId: string | null) {
     queryFn: () => fetchCourseWithModules(courseId!),
     enabled: !!courseId,
     staleTime: 0,
-    retry: 1,
   });
 }
 

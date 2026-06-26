@@ -77,7 +77,6 @@ export function useCoursesProfessor(filter: CoursesProfessorFilter = {}) {
       return data;
     },
     placeholderData: (prev) => prev,
-    retry: 1,
   });
 }
 
@@ -91,7 +90,6 @@ export function useCoursesProfessorAll() {
       return data.data;
     },
     staleTime: 60_000,
-    retry: 1,
   });
 }
 

@@ -146,7 +146,6 @@ export function useCourseDetail(courseId: string) {
       } as CourseDetail;
     },
     staleTime: 15_000,
-    retry: 1,
   });
 }
 

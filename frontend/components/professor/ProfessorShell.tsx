@@ -23,7 +23,7 @@ const LOADING_ROLE = {
 
 export function ProfessorShell({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
-  const { data: pending } = usePendingEnrollments();
+  const { data: pending } = usePendingEnrollments({ enabled: !!user });
 
   const appUser = user ? deriveAppUser(user) : LOADING_USER;
   const role = user ? deriveRoleBadge(user.role) : LOADING_ROLE;

@@ -84,7 +84,6 @@ export function useCatalog(filter: CatalogFilter = {}) {
       return courses;
     },
     staleTime: 20_000,
-    retry: 1,
   });
 }
 
