@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import type React from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Search, LayoutGrid, List, Pencil, Trash2, Eye, Users } from "lucide-react";
+import { toUploadUrl } from "@/lib/api";
 import { Badge } from "@/components/ui/Badge";
 import { Toast } from "@/components/ui/Toast";
 import {
@@ -235,7 +236,7 @@ export default function CursosPage() {
                   key={course.id}
                   style={{ background: "#fff", border: "1px solid #ece4e4", borderRadius: 16, overflow: "hidden" }}
                 >
-                  <div style={{ height: 130, background: gradient, backgroundImage: course.thumbnailUrl ? `url(${course.thumbnailUrl})` : undefined, backgroundSize: "cover", backgroundPosition: "center", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
+                  <div style={{ height: 130, background: gradient, backgroundImage: course.thumbnailUrl ? `url(${toUploadUrl(course.thumbnailUrl)})` : undefined, backgroundSize: "cover", backgroundPosition: "center", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
                     {!course.thumbnailUrl && (
                       <div style={{ width: 52, height: 52, borderRadius: 14, background: "rgba(255,255,255,0.22)", backdropFilter: "blur(8px)", border: "2px solid rgba(255,255,255,0.35)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, fontWeight: 800, color: "#fff" }}>
                         {tag}
@@ -299,7 +300,7 @@ export default function CursosPage() {
                       <tr key={c.id} style={{ borderBottom: "1px solid #f6f1f1" }}>
                         <td style={{ padding: "14px 16px" }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                            <div style={{ width: 32, height: 32, borderRadius: 9, background: gradient, backgroundImage: c.thumbnailUrl ? `url(${c.thumbnailUrl})` : undefined, backgroundSize: "cover", backgroundPosition: "center", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, color: "#fff", flexShrink: 0 }}>
+                            <div style={{ width: 32, height: 32, borderRadius: 9, background: gradient, backgroundImage: c.thumbnailUrl ? `url(${toUploadUrl(c.thumbnailUrl)})` : undefined, backgroundSize: "cover", backgroundPosition: "center", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, color: "#fff", flexShrink: 0 }}>
                               {!c.thumbnailUrl && tag}
                             </div>
                             <span style={{ fontSize: 14, fontWeight: 700, color: "#16100f" }}>{c.title}</span>

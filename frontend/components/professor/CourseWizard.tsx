@@ -22,7 +22,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Plus, Trash2, ChevronDown, ChevronRight } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useQueryClient } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { api, toUploadUrl } from "@/lib/api";
 import type { CourseEditorData } from "@/hooks/use-course-editor";
 import { useProfessors } from "@/hooks/use-users";
 import { useQuizzes } from "@/hooks/use-quizzes";
@@ -253,6 +253,7 @@ function MaterialsPanel({
   onUpdate: (updates: Partial<LessonItem>) => void;
 }) {
   const materials = lesson.materials ?? [];
+  const [uploadingId, setUploadingId] = useState<string | null>(null);
 
   function addMaterial() {
     const newMat: MaterialItem = { id: `mat_${Date.now()}`, title: "", url: "", type: "link" };
@@ -265,6 +266,20 @@ function MaterialsPanel({
 
   function updateMaterial(id: string, patch: Partial<MaterialItem>) {
     onUpdate({ materials: materials.map((m) => m.id === id ? { ...m, ...patch } : m) });
+  }
+
+  async function handleFileUpload(matId: string, file: File) {
+    setUploadingId(matId);
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const res = await api.post<{ url: string }>("/upload/file", formData);
+      updateMaterial(matId, { url: res.data.url });
+    } catch {
+      // silent — usuário pode tentar novamente
+    } finally {
+      setUploadingId(null);
+    }
   }
 
   return (
@@ -297,12 +312,43 @@ function MaterialsPanel({
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
             </button>
           </div>
-          <input
-            value={m.url}
-            onChange={(e) => updateMaterial(m.id, { url: e.target.value })}
-            placeholder="URL do material (https://...)"
-            style={{ border: "1px solid #eadfdf", borderRadius: 8, padding: "8px 10px", fontSize: 13, fontFamily: "inherit", fontWeight: 500, color: "#3a3030", background: "#fff", outline: "none", width: "100%", boxSizing: "border-box" as const }}
-          />
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <input
+              value={m.url}
+              onChange={(e) => updateMaterial(m.id, { url: e.target.value })}
+              placeholder={m.type === "link" ? "URL do material (https://...)" : "Cole uma URL ou faça upload →"}
+              style={{ flex: 1, border: "1px solid #eadfdf", borderRadius: 8, padding: "8px 10px", fontSize: 13, fontFamily: "inherit", fontWeight: 500, color: "#3a3030", background: "#fff", outline: "none", boxSizing: "border-box" as const }}
+            />
+            {m.type !== "link" && (
+              <>
+                <input
+                  type="file"
+                  id={`mat-file-${m.id}`}
+                  style={{ display: "none" }}
+                  accept=".pdf,.ppt,.pptx,.doc,.docx,image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleFileUpload(m.id, file);
+                    e.target.value = "";
+                  }}
+                />
+                <label
+                  htmlFor={`mat-file-${m.id}`}
+                  title="Enviar arquivo do computador"
+                  style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 34, height: 34, borderRadius: 8, border: "1.5px solid #eadfdf", background: "#fff", cursor: uploadingId === m.id ? "default" : "pointer", flexShrink: 0, color: uploadingId === m.id ? "#a89e9c" : PRIMARY }}
+                >
+                  {uploadingId === m.id ? (
+                    <div style={{ width: 14, height: 14, border: "2px solid #d8cccc", borderTopColor: PRIMARY, borderRadius: "50%", animation: "spin .6s linear infinite" }} />
+                  ) : (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/>
+                      <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
+                    </svg>
+                  )}
+                </label>
+              </>
+            )}
+          </div>
         </div>
       ))}
       <button onClick={addMaterial} type="button" style={{ display: "inline-flex", alignItems: "center", gap: 7, fontFamily: "inherit", fontSize: 13, fontWeight: 700, color: PRIMARY, background: "#fff", border: "1.5px dashed #e2d2d2", borderRadius: 9, padding: "9px 13px", cursor: "pointer", alignSelf: "flex-start" }}>
@@ -1490,7 +1536,7 @@ export function CourseWizard({ initialCourseId, initialData, backHref, showTeach
                         {thumbnailUrl && (
                           <div style={{ marginTop: 10, borderRadius: 10, overflow: "hidden", maxWidth: 300, border: "1px solid #eadfdf" }}>
                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={thumbnailUrl} alt="Capa do curso" style={{ width: "100%", display: "block", maxHeight: 160, objectFit: "cover" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                            <img src={toUploadUrl(thumbnailUrl) ?? thumbnailUrl} alt="Capa do curso" style={{ width: "100%", display: "block", maxHeight: 160, objectFit: "cover" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                           </div>
                         )}
                       </>
@@ -1518,7 +1564,7 @@ export function CourseWizard({ initialCourseId, initialData, backHref, showTeach
                           ) : thumbnailUrl ? (
                             <div>
                               {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img src={thumbnailUrl} alt="Capa do curso" style={{ maxHeight: 130, maxWidth: "100%", borderRadius: 8, objectFit: "cover", display: "block", margin: "0 auto" }} />
+                              <img src={toUploadUrl(thumbnailUrl) ?? thumbnailUrl} alt="Capa do curso" style={{ maxHeight: 130, maxWidth: "100%", borderRadius: 8, objectFit: "cover", display: "block", margin: "0 auto" }} />
                               <div style={{ fontSize: 12, fontWeight: 600, color: "#8a807e", marginTop: 8 }}>Clique ou arraste para trocar</div>
                             </div>
                           ) : (

@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useCoursePreview } from "@/hooks/use-course-detail";
 import { useAuth } from "@/hooks/use-auth";
 import { LEVEL_LABEL } from "@/lib/utils";
+import { toUploadUrl } from "@/lib/api";
 import type { ApiCourseLevel } from "@/lib/utils";
 
 const PRIMARY = "var(--color-primary)";
@@ -138,7 +139,7 @@ export default function CursoPreviewPage() {
               flexShrink: 0,
               borderRadius: 14,
               background: course.gradient,
-              backgroundImage: course.thumbnailUrl ? `url(${course.thumbnailUrl})` : undefined,
+              backgroundImage: course.thumbnailUrl ? `url(${toUploadUrl(course.thumbnailUrl)})` : undefined,
               backgroundSize: "cover",
               backgroundPosition: "center",
               display: "flex",

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Plus, BookOpen, Users, Trash2, Edit2, Eye } from "lucide-react";
+import { toUploadUrl } from "@/lib/api";
 import {
   useCoursesProfessor,
   useDeleteCourseProfessor,
@@ -139,7 +140,7 @@ export default function ProfessorCursosPage() {
               const level = c.level ? (LEVEL_LABEL[c.level as ApiCourseLevel] ?? c.level) : "";
               return (
                 <div key={c.id} style={{ background: "#fff", borderRadius: 16, border: "1px solid #f0eaea", overflow: "hidden" }}>
-                  <div style={{ height: c.thumbnailUrl ? 90 : 6, background: c.thumbnailUrl ? undefined : color, backgroundImage: c.thumbnailUrl ? `url(${c.thumbnailUrl})` : undefined, backgroundSize: "cover", backgroundPosition: "center" }} />
+                  <div style={{ height: c.thumbnailUrl ? 90 : 6, background: c.thumbnailUrl ? undefined : color, backgroundImage: c.thumbnailUrl ? `url(${toUploadUrl(c.thumbnailUrl)})` : undefined, backgroundSize: "cover", backgroundPosition: "center" }} />
                   <div style={{ padding: "18px 18px 16px" }}>
                     <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10, marginBottom: 14 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
