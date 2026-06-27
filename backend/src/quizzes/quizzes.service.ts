@@ -226,10 +226,11 @@ export class QuizzesService {
       updatedAt: full.updatedAt,
     };
 
+    const attemptCount = await this.prisma.quizSubmission.count({
+      where: { quizId, studentId: user.userId },
+    });
+
     if (user.role === Role.STUDENT) {
-      const attemptCount = await this.prisma.quizSubmission.count({
-        where: { quizId, studentId: user.userId },
-      });
       const canAttempt = full.maxAttempts === null || attemptCount < full.maxAttempts;
       return {
         ...base,
@@ -239,7 +240,12 @@ export class QuizzesService {
       };
     }
 
-    return base;
+    return {
+      ...base,
+      attemptCount,
+      canAttempt: true,
+      attemptsRemaining: null,
+    };
   }
 
   // ─── create ────────────────────────────────────────────────────────────────
@@ -446,13 +452,15 @@ export class QuizzesService {
 
     if (!quiz || quiz.companyId !== user.companyId) throw new NotFoundException('Quiz not found');
 
-    await this.assertActiveEnrollment(quiz.courseId, user.userId);
+    if (user.role === Role.STUDENT) {
+      await this.assertActiveEnrollment(quiz.courseId, user.userId);
+    }
 
     const previousAttempts = await this.prisma.quizSubmission.count({
       where: { quizId, studentId: user.userId },
     });
 
-    if (quiz.maxAttempts !== null && previousAttempts >= quiz.maxAttempts) {
+    if (user.role === Role.STUDENT && quiz.maxAttempts !== null && previousAttempts >= quiz.maxAttempts) {
       throw new BadRequestException(
         `Maximum number of attempts (${quiz.maxAttempts}) reached for this quiz`,
       );
