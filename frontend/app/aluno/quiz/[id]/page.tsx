@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useQuizStudent, useSubmitQuiz } from "@/hooks/use-quiz-student";
-import type { SubmitResult, AnswerDetail } from "@/hooks/use-quiz-student";
+import type { SubmitResult, AnswerDetail, QuizQuestion } from "@/hooks/use-quiz-student";
 
 const PRIMARY = "#CC1F1F";
 
@@ -24,6 +24,15 @@ function SmallIcon({ paths, color }: { paths: string[]; color: string }) {
   );
 }
 
+function shuffleArray<T>(arr: T[]): T[] {
+  return [...arr].sort(() => Math.random() - 0.5);
+}
+
+function buildShuffledQuestions(rawQuestions: QuizQuestion[], doShuffle: boolean): QuizQuestion[] {
+  const qs = doShuffle ? shuffleArray(rawQuestions) : [...rawQuestions];
+  return qs.map((q) => ({ ...q, options: doShuffle ? shuffleArray(q.options) : q.options }));
+}
+
 export default function QuizPage() {
   const { id: quizId } = useParams<{ id: string }>();
   const router = useRouter();
@@ -31,12 +40,13 @@ export default function QuizPage() {
   const [currentQ, setCurrentQ] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [result, setResult] = useState<SubmitResult | null>(null);
+  const [orderedQuestions, setOrderedQuestions] = useState<QuizQuestion[]>([]);
 
   const quizQ = useQuizStudent(quizId);
   const submitMut = useSubmitQuiz(quizId);
 
   const quiz = quizQ.data;
-  const questions = quiz?.questions ?? [];
+  const questions = orderedQuestions.length > 0 ? orderedQuestions : (quiz?.questions ?? []);
   const minPct = quiz?.minPassingScore ?? 70;
 
   const selectedForCurrent = questions[currentQ] ? (answers[questions[currentQ].id] ?? "") : "";
@@ -59,11 +69,21 @@ export default function QuizPage() {
     }
   }
 
+  function startQuiz() {
+    if (!quiz) return;
+    setOrderedQuestions(buildShuffledQuestions(quiz.questions, quiz.shuffleQuestions));
+    setCurrentQ(0);
+    setAnswers({});
+    setView("quiz");
+  }
+
   function handleRetry() {
-    setView("start");
+    if (!quiz) return;
+    setOrderedQuestions(buildShuffledQuestions(quiz.questions, quiz.shuffleQuestions));
     setAnswers({});
     setCurrentQ(0);
     setResult(null);
+    setView("quiz");
   }
 
   const qPct = questions.length > 0 ? `${Math.round(((currentQ + 1) / questions.length) * 100)}%` : "0%";
@@ -165,7 +185,7 @@ export default function QuizPage() {
                 </div>
               ) : (
                 <button
-                  onClick={() => setView("quiz")}
+                  onClick={startQuiz}
                   type="button"
                   style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 9, fontFamily: "inherit", fontSize: 15.5, fontWeight: 800, color: "#fff", background: PRIMARY, border: "none", borderRadius: 13, padding: 16, cursor: "pointer", boxShadow: "0 10px 26px rgba(204,31,31,0.3)" }}
                 >

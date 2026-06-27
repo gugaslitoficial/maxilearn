@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useLessonContext, useMarkLessonComplete } from "@/hooks/use-lesson";
 import { useQuizStudent, useSubmitQuizById } from "@/hooks/use-quiz-student";
-import type { SubmitResult, QuizOption } from "@/hooks/use-quiz-student";
+import type { SubmitResult, QuizOption, QuizQuestion } from "@/hooks/use-quiz-student";
 import { PlayerSidebar } from "@/components/player/PlayerSidebar";
 import { Toast } from "@/components/ui/Toast";
 
@@ -55,6 +55,7 @@ export default function PlayerAulaPage() {
   const [quizAnswers, setQuizAnswers] = useState<Record<string, string>>({});
   const [quizResult, setQuizResult] = useState<SubmitResult | null>(null);
   const [shuffledOptions, setShuffledOptions] = useState<Record<string, QuizOption[]>>({});
+  const [shuffledQuestions, setShuffledQuestions] = useState<QuizQuestion[]>([]);
 
   // Certificate modal
   const [showCertModal, setShowCertModal] = useState(false);
@@ -78,6 +79,7 @@ export default function PlayerAulaPage() {
     setQuizAnswers({});
     setQuizResult(null);
     setShuffledOptions({});
+    setShuffledQuestions([]);
     videoPlayedRef.current = false;
     if (videoTimerRef.current) {
       clearTimeout(videoTimerRef.current);
@@ -113,14 +115,23 @@ export default function PlayerAulaPage() {
     }, 30_000);
   }
 
-  // Quiz init: compute shuffled options when entering quiz
-  function initQuiz() {
-    if (!quizQ.data) return;
+  function buildShuffledState(data: typeof quizQ.data) {
+    if (!data) return;
+    const qs = data.shuffleQuestions
+      ? [...data.questions].sort(() => Math.random() - 0.5)
+      : [...data.questions];
     const opts: Record<string, QuizOption[]> = {};
-    for (const q of quizQ.data.questions) {
+    for (const q of qs) {
       opts[q.id] = selectOptions(q.options, q.displayCount);
     }
+    setShuffledQuestions(qs);
     setShuffledOptions(opts);
+  }
+
+  // Quiz init: compute shuffled questions/options when entering quiz
+  function initQuiz() {
+    if (!quizQ.data) return;
+    buildShuffledState(quizQ.data);
     setCurrentQ(0);
     setQuizAnswers({});
     setQuizView("start");
@@ -128,7 +139,8 @@ export default function PlayerAulaPage() {
 
   async function handleQuizSubmit() {
     if (!quizQ.data) return;
-    const payload = quizQ.data.questions.map((q) => ({
+    const qs = shuffledQuestions.length > 0 ? shuffledQuestions : quizQ.data.questions;
+    const payload = qs.map((q) => ({
       questionId: q.id,
       selectedOptionId: quizAnswers[q.id] ?? "",
     })).filter((a) => a.selectedOptionId);
@@ -145,11 +157,7 @@ export default function PlayerAulaPage() {
 
   function handleQuizRetry() {
     if (!quizQ.data) return;
-    const opts: Record<string, QuizOption[]> = {};
-    for (const q of quizQ.data.questions) {
-      opts[q.id] = selectOptions(q.options, q.displayCount);
-    }
-    setShuffledOptions(opts);
+    buildShuffledState(quizQ.data);
     setCurrentQ(0);
     setQuizAnswers({});
     setQuizResult(null);
@@ -189,7 +197,7 @@ export default function PlayerAulaPage() {
 
   // ─── Quiz panel (inline) ─────────────────────────────────────────────────
   const quiz = quizQ.data;
-  const questions = quiz?.questions ?? [];
+  const questions = shuffledQuestions.length > 0 ? shuffledQuestions : (quiz?.questions ?? []);
   const displayedOptions = (qId: string) => shuffledOptions[qId] ?? [];
   const selectedForCurrent = questions[currentQ] ? (quizAnswers[questions[currentQ].id] ?? "") : "";
   const allAnswered = questions.length > 0 && questions.every((q) => quizAnswers[q.id]);

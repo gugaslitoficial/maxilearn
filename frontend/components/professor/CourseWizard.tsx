@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useId, useRef, useCallback, useEffect } from "react";
+import { useState, useId, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   DndContext,
@@ -605,7 +605,6 @@ function QuizPanel({
 function SortableModule({
   module,
   savedCourseId,
-  moduleApiId,
   lessonApiIds,
   expandedLessonId,
   moduleSaveStatus,
@@ -806,20 +805,18 @@ export function CourseWizard({ initialCourseId, initialData, backHref, showTeach
 
   const [savedCourseId, setSavedCourseId] = useState<string | null>(initialCourseId ?? null);
   const [courseStatus, setCourseStatus] = useState<string>(initialData?.course.status ?? "DRAFT");
-  const [saveToast, setSaveToast] = useState(false);
+  const [saveToast] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
-  const [moduleApiIds] = useState<Record<string, string>>(() => {
+  const [moduleApiIds, setModuleApiIds] = useState<Record<string, string>>(() => {
     if (initialData) return Object.fromEntries(initialData.modules.map((m) => [m.id, m.id]));
     return {};
   });
-  const [lessonApiIds] = useState<Record<string, string>>(() => {
+  const [lessonApiIds, setLessonApiIds] = useState<Record<string, string>>(() => {
     if (initialData) return Object.fromEntries(
       initialData.modules.flatMap((m) => m.lessons.map((l) => [l.id, l.id]))
     );
     return {};
   });
-  const moduleApiIdsRef = useRef(moduleApiIds);
-  const lessonApiIdsRef = useRef(lessonApiIds);
   const pendingModuleDeletes = useRef<string[]>([]);
   const pendingLessonDeletes = useRef<{ moduleApiId: string; lessonApiId: string }[]>([]);
 
@@ -886,10 +883,6 @@ export function CourseWizard({ initialCourseId, initialData, backHref, showTeach
     return [];
   });
 
-  useEffect(() => {
-    if (initialData?.course.status) setCourseStatus(initialData.course.status);
-  }, [initialData?.course.status]);
-
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
@@ -928,10 +921,10 @@ export function CourseWizard({ initialCourseId, initialData, backHref, showTeach
   function deleteLesson(moduleId: string, lessonId: string) {
     setModules((prev) => prev.map((m) => m.id !== moduleId ? m : { ...m, lessons: m.lessons.filter((l) => l.id !== lessonId) }));
     if (expandedLessonId === lessonId) setExpandedLessonId(null);
-    const lApiId = lessonApiIdsRef.current[lessonId];
-    const mApiId = moduleApiIdsRef.current[moduleId];
+    const lApiId = lessonApiIds[lessonId];
+    const mApiId = moduleApiIds[moduleId];
     if (lApiId && mApiId && savedCourseId) {
-      delete lessonApiIdsRef.current[lessonId];
+      setLessonApiIds((prev) => { const n = { ...prev }; delete n[lessonId]; return n; });
       pendingLessonDeletes.current.push({ moduleApiId: mApiId, lessonApiId: lApiId });
       api.delete(`/courses/${savedCourseId}/modules/${mApiId}/lessons/${lApiId}`)
         .then(() => {
@@ -945,9 +938,9 @@ export function CourseWizard({ initialCourseId, initialData, backHref, showTeach
 
   function deleteModule(moduleId: string) {
     setModules((prev) => prev.filter((m) => m.id !== moduleId));
-    const mApiId = moduleApiIdsRef.current[moduleId];
+    const mApiId = moduleApiIds[moduleId];
     if (mApiId && savedCourseId) {
-      delete moduleApiIdsRef.current[moduleId];
+      setModuleApiIds((prev) => { const n = { ...prev }; delete n[moduleId]; return n; });
       pendingModuleDeletes.current.push(mApiId);
       api.delete(`/courses/${savedCourseId}/modules/${mApiId}`)
         .then(() => {
@@ -972,8 +965,8 @@ export function CourseWizard({ initialCourseId, initialData, backHref, showTeach
     ));
     // Immediately persist type change so the player sees the correct type without requiring a full course save
     if (updates.type !== undefined) {
-      const lessonApiId = lessonApiIdsRef.current[lessonId];
-      const moduleApiId = moduleApiIdsRef.current[moduleId];
+      const lessonApiId = lessonApiIds[lessonId];
+      const moduleApiId = moduleApiIds[moduleId];
       if (lessonApiId && moduleApiId && savedCourseId) {
         api.patch(`/courses/${savedCourseId}/modules/${moduleApiId}/lessons/${lessonApiId}`, { type: updates.type }).catch(() => {});
       }
@@ -987,7 +980,7 @@ export function CourseWizard({ initialCourseId, initialData, backHref, showTeach
   }
 
   const handleModuleTitleBlur = useCallback(async (moduleId: string, title: string) => {
-    const apiId = moduleApiIdsRef.current[moduleId];
+    const apiId = moduleApiIds[moduleId];
     if (!apiId || !savedCourseId || title.trim().length < 3) return;
     setModuleSaveStatus((prev) => ({ ...prev, [moduleId]: "saving" }));
     try {
@@ -997,11 +990,11 @@ export function CourseWizard({ initialCourseId, initialData, backHref, showTeach
     } catch {
       setModuleSaveStatus((prev) => ({ ...prev, [moduleId]: "error" }));
     }
-  }, [savedCourseId]);
+  }, [moduleApiIds, savedCourseId]);
 
   const handleLessonTitleBlur = useCallback(async (moduleId: string, lessonId: string, title: string) => {
-    const lessonApiId = lessonApiIdsRef.current[lessonId];
-    const moduleApiId = moduleApiIdsRef.current[moduleId];
+    const lessonApiId = lessonApiIds[lessonId];
+    const moduleApiId = moduleApiIds[moduleId];
     if (!lessonApiId || !moduleApiId || !savedCourseId || title.trim().length < 3) return;
     setLessonSaveStatus((prev) => ({ ...prev, [lessonId]: "saving" }));
     try {
@@ -1011,15 +1004,15 @@ export function CourseWizard({ initialCourseId, initialData, backHref, showTeach
     } catch {
       setLessonSaveStatus((prev) => ({ ...prev, [lessonId]: "error" }));
     }
-  }, [savedCourseId]);
+  }, [lessonApiIds, moduleApiIds, savedCourseId]);
 
   function toggleLesson(lessonId: string) {
     setExpandedLessonId((prev) => prev === lessonId ? null : lessonId);
   }
 
   const saveLessonPanel = useCallback(async (moduleId: string, lessonId: string) => {
-    const lessonApiId = lessonApiIdsRef.current[lessonId];
-    const moduleApiId = moduleApiIdsRef.current[moduleId];
+    const lessonApiId = lessonApiIds[lessonId];
+    const moduleApiId = moduleApiIds[moduleId];
     if (!lessonApiId || !moduleApiId || !savedCourseId) return;
     const lesson = modules.flatMap((m) => m.lessons).find((l) => l.id === lessonId);
     if (!lesson) return;
@@ -1036,7 +1029,7 @@ export function CourseWizard({ initialCourseId, initialData, backHref, showTeach
     } finally {
       setPanelSaving(null);
     }
-  }, [savedCourseId, modules]);
+  }, [lessonApiIds, moduleApiIds, savedCourseId, modules]);
 
   function handleQuizDraftChange(lessonId: string, patch: Partial<QuizDraft>) {
     setQuizDrafts((prev) => ({
@@ -1048,8 +1041,8 @@ export function CourseWizard({ initialCourseId, initialData, backHref, showTeach
   function handleQuizSaved(moduleId: string, lessonId: string, quizId: string, quizTitle: string) {
     updateLessonContent(moduleId, lessonId, { quizId, quizTitle });
     // Safety net: ensure type="quiz" is persisted even if the type button was clicked before the lesson had a backend ID
-    const lessonApiId = lessonApiIdsRef.current[lessonId];
-    const moduleApiId = moduleApiIdsRef.current[moduleId];
+    const lessonApiId = lessonApiIds[lessonId];
+    const moduleApiId = moduleApiIds[moduleId];
     if (lessonApiId && moduleApiId && savedCourseId) {
       api.patch(`/courses/${savedCourseId}/modules/${moduleApiId}/lessons/${lessonApiId}`, { type: "quiz" }).catch(() => {});
     }
@@ -1125,8 +1118,8 @@ export function CourseWizard({ initialCourseId, initialData, backHref, showTeach
       }
       pendingLessonDeletes.current = remainingLsnDeletes;
 
-      const localModuleIds = { ...moduleApiIdsRef.current };
-      const localLessonIds = { ...lessonApiIdsRef.current };
+      const localModuleIds = { ...moduleApiIds };
+      const localLessonIds = { ...lessonApiIds };
 
       for (let i = 0; i < modules.length; i++) {
         const m = modules[i];
@@ -1164,8 +1157,8 @@ export function CourseWizard({ initialCourseId, initialData, backHref, showTeach
         }
       }
 
-      Object.assign(moduleApiIdsRef.current, localModuleIds);
-      Object.assign(lessonApiIdsRef.current, localLessonIds);
+      setModuleApiIds((prev) => ({ ...prev, ...localModuleIds }));
+      setLessonApiIds((prev) => ({ ...prev, ...localLessonIds }));
 
       if (publish && courseStatus !== "PUBLISHED") {
         await api.patch(`/courses/${cId}/status`, { status: "PUBLISHED" });
@@ -1453,8 +1446,8 @@ export function CourseWizard({ initialCourseId, initialData, backHref, showTeach
                           key={m.id}
                           module={m}
                           savedCourseId={savedCourseId}
-                          moduleApiId={moduleApiIdsRef.current[m.id]}
-                          lessonApiIds={lessonApiIdsRef.current}
+                          moduleApiId={moduleApiIds[m.id]}
+                          lessonApiIds={lessonApiIds}
                           expandedLessonId={expandedLessonId}
                           moduleSaveStatus={moduleSaveStatus}
                           lessonSaveStatus={lessonSaveStatus}
