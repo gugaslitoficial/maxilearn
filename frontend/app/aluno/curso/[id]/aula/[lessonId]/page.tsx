@@ -48,6 +48,7 @@ export default function PlayerAulaPage() {
   const [notes, setNotes] = useState("");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [selectedMatIdx, setSelectedMatIdx] = useState(0);
 
   // Quiz inline state
   const [quizView, setQuizView] = useState<QuizView>("idle");
@@ -80,6 +81,7 @@ export default function PlayerAulaPage() {
     setQuizResult(null);
     setShuffledOptions({});
     setShuffledQuestions([]);
+    setSelectedMatIdx(0);
     videoPlayedRef.current = false;
     if (videoTimerRef.current) {
       clearTimeout(videoTimerRef.current);
@@ -528,34 +530,64 @@ export default function PlayerAulaPage() {
 
           {/* Lesson content */}
           <div style={{ background: "#000", display: "flex", alignItems: "center", justifyContent: "center", padding: "clamp(12px,2vw,28px)" }}>
-            {currentLesson?.type === "quiz" ? renderQuizPanel() : currentLesson?.type === "file" ? (
-              <div style={{ width: "100%", maxWidth: 1100, background: "#161212", border: "1px solid #2a2424", borderRadius: 12, padding: "28px 32px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8a807e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
-                  <span style={{ fontSize: 12, fontWeight: 800, letterSpacing: "0.05em", textTransform: "uppercase", color: "#8a807e" }}>Materiais</span>
-                </div>
-                {(!currentLesson?.materials || currentLesson.materials.length === 0) ? (
+            {currentLesson?.type === "quiz" ? renderQuizPanel() : currentLesson?.type === "file" ? (() => {
+              const mats = (currentLesson.materials as Array<{ id?: string; title: string; url: string; type: string }>) ?? [];
+              const mat = mats[selectedMatIdx] ?? mats[0];
+              if (!mat) return (
+                <div style={{ width: "100%", maxWidth: 1100, background: "#161212", border: "1px solid #2a2424", borderRadius: 12, padding: "40px 32px", display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <p style={{ fontSize: 13.5, fontWeight: 600, color: "#8a807e", fontStyle: "italic" }}>Nenhum material adicionado a esta aula.</p>
-                ) : (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                    {currentLesson.materials.map((mat, i) => (
-                      <a
-                        key={mat.id ?? i}
-                        href={mat.url || "#"}
-                        target="_blank"
-                        rel="noreferrer"
-                        onClick={() => autoComplete()}
-                        style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", background: "#221d1d", border: "1px solid #2a2424", borderRadius: 10, textDecoration: "none" }}
-                      >
-                        <span style={{ fontSize: 10, fontWeight: 900, color: "#e6dede", background: "#3a3030", padding: "3px 8px", borderRadius: 5, flexShrink: 0 }}>{(mat.type ?? "link").toUpperCase()}</span>
-                        <span style={{ flex: 1, fontSize: 14, fontWeight: 600, color: "#e6dede", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{mat.title || "Material sem nome"}</span>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8a807e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                </div>
+              );
+              const url = mat.url ?? "";
+              const isPdf = mat.type === "pdf" || /\.pdf$/i.test(url);
+              const isImage = /\.(jpe?g|png|gif|webp|svg)$/i.test(url);
+              const isDoc = mat.type === "doc" || mat.type === "ppt" || /\.(docx?|pptx?|xlsx?)$/i.test(url);
+              const isLink = mat.type === "link" || (!isPdf && !isImage && !isDoc);
+              const iframeSrc = isDoc
+                ? `https://docs.google.com/gview?url=${encodeURIComponent(url)}&embedded=true`
+                : !course.allowDownload && isPdf ? `${url}#toolbar=0&navpanes=0` : url;
+              return (
+                <div style={{ width: "100%", maxWidth: 1100, background: "#0a0808", borderRadius: 12, overflow: "hidden", border: "1px solid #2a2424" }}>
+                  {mats.length > 1 && (
+                    <div style={{ display: "flex", gap: 4, padding: "10px 14px", borderBottom: "1px solid #2a2424", background: "#1a1616", overflowX: "auto" }}>
+                      {mats.map((m, i) => (
+                        <button key={m.id ?? i} type="button" onClick={() => setSelectedMatIdx(i)}
+                          style={{ fontFamily: "inherit", fontSize: 12.5, fontWeight: 700, padding: "6px 14px", borderRadius: 7, border: "none", cursor: "pointer", whiteSpace: "nowrap", background: selectedMatIdx === i ? "#2a2424" : "transparent", color: selectedMatIdx === i ? "#fff" : "#8a807e" }}>
+                          {m.title || `Material ${i + 1}`}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {isLink ? (
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 20, padding: "60px 40px" }}>
+                      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#4a4040" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: "#cfc8c8" }}>{mat.title}</div>
+                      <a href={url} target="_blank" rel="noreferrer" onClick={() => autoComplete()}
+                        style={{ display: "inline-flex", alignItems: "center", gap: 8, fontFamily: "inherit", fontSize: 14, fontWeight: 800, color: "#fff", background: PRIMARY, textDecoration: "none", borderRadius: 10, padding: "12px 22px" }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                        Abrir link
                       </a>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ) : (() => {
+                    </div>
+                  ) : isImage ? (
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", background: "#0a0808", padding: 20 }}>
+                      <img src={url} alt={mat.title} onLoad={() => autoComplete()} style={{ maxWidth: "100%", maxHeight: "75vh", objectFit: "contain", borderRadius: 8, display: "block" }} />
+                    </div>
+                  ) : (
+                    <iframe src={iframeSrc} title={mat.title} onLoad={() => autoComplete()}
+                      style={{ width: "100%", height: "75vh", border: "none", display: "block" }} />
+                  )}
+                  {course.allowDownload && !isLink && (
+                    <div style={{ padding: "12px 16px", borderTop: "1px solid #2a2424", background: "#1a1616", display: "flex", justifyContent: "flex-end" }}>
+                      <a href={url} download target="_blank" rel="noreferrer"
+                        style={{ display: "inline-flex", alignItems: "center", gap: 7, fontFamily: "inherit", fontSize: 13, fontWeight: 700, color: "#cfc8c8", textDecoration: "none", background: "#272121", border: "1px solid #332c2c", borderRadius: 8, padding: "8px 14px" }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        Baixar arquivo
+                      </a>
+                    </div>
+                  )}
+                </div>
+              );
+            })() : (() => {
               const ytId = currentLesson?.videoUrl ? extractYouTubeId(currentLesson.videoUrl) : null;
               if (ytId) return (
                 <div
@@ -648,11 +680,19 @@ export default function PlayerAulaPage() {
                   ) : (
                     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                       {currentLesson.materials.map((mat, i) => (
-                        <a key={mat.id ?? i} href={mat.url || "#"} target="_blank" rel="noreferrer" style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", background: "#221d1d", border: "1px solid #2a2424", borderRadius: 10, textDecoration: "none" }}>
-                          <span style={{ fontSize: 10, fontWeight: 900, color: "#e6dede", background: "#3a3030", padding: "3px 8px", borderRadius: 5, flexShrink: 0 }}>{(mat.type ?? "link").toUpperCase()}</span>
-                          <span style={{ flex: 1, fontSize: 14, fontWeight: 600, color: "#e6dede", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{mat.title || "Material sem nome"}</span>
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8a807e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-                        </a>
+                        course.allowDownload ? (
+                          <a key={mat.id ?? i} href={mat.url || "#"} target="_blank" rel="noreferrer" style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", background: "#221d1d", border: "1px solid #2a2424", borderRadius: 10, textDecoration: "none" }}>
+                            <span style={{ fontSize: 10, fontWeight: 900, color: "#e6dede", background: "#3a3030", padding: "3px 8px", borderRadius: 5, flexShrink: 0 }}>{(mat.type ?? "link").toUpperCase()}</span>
+                            <span style={{ flex: 1, fontSize: 14, fontWeight: 600, color: "#e6dede", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{mat.title || "Material sem nome"}</span>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8a807e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                          </a>
+                        ) : (
+                          <div key={mat.id ?? i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", background: "#221d1d", border: "1px solid #2a2424", borderRadius: 10 }}>
+                            <span style={{ fontSize: 10, fontWeight: 900, color: "#e6dede", background: "#3a3030", padding: "3px 8px", borderRadius: 5, flexShrink: 0 }}>{(mat.type ?? "link").toUpperCase()}</span>
+                            <span style={{ flex: 1, fontSize: 14, fontWeight: 600, color: "#e6dede", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{mat.title || "Material sem nome"}</span>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4a4040" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                          </div>
+                        )
                       ))}
                     </div>
                   )}

@@ -43,6 +43,7 @@ export interface CourseDetailRaw {
   minApprovalScore?: number;
   estimatedDurationMinutes?: number;
   isRestricted: boolean;
+  allowDownload: boolean;
   teacher: { id: string; name: string; avatarUrl: string | null };
   _count: { modules: number; enrollments: number };
   modules: ModuleRaw[];
