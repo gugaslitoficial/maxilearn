@@ -828,7 +828,9 @@ export function CourseWizard({ initialCourseId, initialData, backHref, showTeach
   const course = initialData?.course;
   const [courseTitle, setCourseTitle] = useState(course?.title ?? "");
   const [description, setDescription] = useState(course?.description ?? "");
-  const [category, setCategory] = useState(course?.category ?? "Segurança");
+  const isCustomCat = !!(course?.category && !CATEGORIES.includes(course.category));
+  const [category, setCategory] = useState(isCustomCat ? "Outro" : (course?.category ?? "Segurança"));
+  const [customCategory, setCustomCategory] = useState(isCustomCat ? (course.category ?? "") : "");
   const [level, setLevel] = useState<CourseLevel>(
     course?.level ? (LEVEL_API_TO_UI[course.level] ?? "inter") : "inter"
   );
@@ -1084,7 +1086,7 @@ export function CourseWizard({ initialCourseId, initialData, backHref, showTeach
       const payload = {
         title: courseTitle || "Curso sem título",
         description: description || undefined,
-        category: category || undefined,
+        category: (category === "Outro" ? customCategory.trim() : category) || undefined,
         level: LEVEL_UI_TO_API[level],
         thumbnailUrl: thumbnailUrl || undefined,
         teacherId: showTeacherPicker ? selectedTeacherId : user.id,
@@ -1462,9 +1464,25 @@ export function CourseWizard({ initialCourseId, initialData, backHref, showTeach
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
                     <div>
                       <label style={labelS}>Categoria</label>
-                      <select value={category} onChange={(e) => setCategory(e.target.value)} style={inputS}>
+                      <select
+                        value={category}
+                        onChange={(e) => {
+                          setCategory(e.target.value);
+                          if (e.target.value !== "Outro") setCustomCategory("");
+                        }}
+                        style={inputS}
+                      >
                         {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
                       </select>
+                      {category === "Outro" && (
+                        <input
+                          value={customCategory}
+                          onChange={(e) => setCustomCategory(e.target.value)}
+                          placeholder="Nome da nova categoria..."
+                          style={{ ...inputS, marginTop: 8 }}
+                          autoFocus
+                        />
+                      )}
                     </div>
                     <div>
                       <label style={labelS}>Nível</label>
