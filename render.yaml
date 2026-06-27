@@ -3,8 +3,5 @@ services:
     name: maxilearn-backend
     runtime: node
     rootDir: backend
-    buildCommand: npm install && npm run build && npx prisma generate
-    startCommand: npx prisma migrate deploy && npm run start:prod
-    envVars:
-      - key: NODE_ENV
-        value: production
+    buildCommand: npm install --include=dev && npx prisma generate && npm run build
+    startCommand: npx prisma migrate deploy && node dist/main.js
