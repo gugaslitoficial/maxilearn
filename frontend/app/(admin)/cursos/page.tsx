@@ -86,9 +86,8 @@ export default function CursosPage() {
   const archiveCourse = useArchiveCourse();
   const deleteCourse = useDeleteCourse();
 
-  const courseList = data?.data ?? [];
+  const courseList = useMemo(() => data?.data ?? [], [data]);
 
-  // Derive unique categories from loaded data
   const categories = useMemo(
     () => [...new Set(courseList.map((c) => c.category).filter(Boolean))] as string[],
     [courseList],
