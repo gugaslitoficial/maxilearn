@@ -318,6 +318,7 @@ function QuizPanel({
   draft,
   onDraftChange,
   onSaved,
+  onAutoSave,
 }: {
   lesson: LessonItem;
   savedCourseId?: string | null;
@@ -325,6 +326,7 @@ function QuizPanel({
   draft: QuizDraft;
   onDraftChange: (patch: Partial<QuizDraft>) => void;
   onSaved: (quizId: string, quizTitle: string) => void;
+  onAutoSave: () => Promise<{ courseId: string; lessonApiId: string } | null>;
 }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -412,10 +414,6 @@ function QuizPanel({
   }
 
   async function saveQuiz() {
-    if (!savedCourseId || !lessonApiId) {
-      setError("Salve o rascunho do curso antes de criar o quiz.");
-      return;
-    }
     if (!draft.title.trim()) {
       setError("Informe o título do quiz.");
       return;
@@ -424,6 +422,22 @@ function QuizPanel({
       setError("Adicione pelo menos uma pergunta.");
       return;
     }
+
+    let cId = savedCourseId;
+    let lId = lessonApiId;
+
+    if (!cId || !lId) {
+      setSaving(true);
+      const saved = await onAutoSave();
+      setSaving(false);
+      if (!saved) {
+        setError("Não foi possível salvar o curso. Verifique os dados e tente novamente.");
+        return;
+      }
+      cId = saved.courseId;
+      lId = saved.lessonApiId;
+    }
+
     setSaving(true);
     setError(null);
     try {
@@ -438,8 +452,8 @@ function QuizPanel({
       }));
       const res = await api.post<{ id: string; title: string }>("/quizzes", {
         title: draft.title,
-        courseId: savedCourseId,
-        lessonId: lessonApiId,
+        courseId: cId,
+        lessonId: lId,
         maxAttempts: draft.maxAttempts,
         shuffleQuestions: draft.shuffleQuestions,
         showAnswersAfter: false,
@@ -619,6 +633,7 @@ function SortableModule({
   onSaveLessonPanel,
   onQuizDraftChange,
   onQuizSaved,
+  onAutoSave,
 }: {
   module: ModuleItem;
   savedCourseId?: string | null;
@@ -641,6 +656,7 @@ function SortableModule({
   onSaveLessonPanel: (moduleId: string, lessonId: string) => void;
   onQuizDraftChange: (lessonId: string, patch: Partial<QuizDraft>) => void;
   onQuizSaved: (moduleId: string, lessonId: string, quizId: string, quizTitle: string) => void;
+  onAutoSave: (lessonId: string) => Promise<{ courseId: string; lessonApiId: string } | null>;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: module.id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
@@ -752,6 +768,7 @@ function SortableModule({
                       draft={draft}
                       onDraftChange={(patch) => onQuizDraftChange(l.id, patch)}
                       onSaved={(qId, qTitle) => onQuizSaved(module.id, l.id, qId, qTitle)}
+                      onAutoSave={() => onAutoSave(l.id)}
                     />
                   )}
                   {l.type === "file" && (
@@ -1191,12 +1208,13 @@ export function CourseWizard({ initialCourseId, initialData, backHref, showTeach
 
       if (hasDeleteErrors) {
         setSaveError("Alguns itens não foram excluídos do servidor. Verifique sua conexão e tente salvar novamente.");
-        return;
       }
 
       if (publish) {
         router.push(backHref ?? "/professor/cursos");
       }
+
+      return { courseId: cId!, lessonIds: localLessonIds };
     } catch (err: unknown) {
       const anyErr = err as { response?: { data?: { message?: string | string[] } } };
       const msg = anyErr?.response?.data?.message;
@@ -1580,6 +1598,13 @@ export function CourseWizard({ initialCourseId, initialData, backHref, showTeach
                           onSaveLessonPanel={saveLessonPanel}
                           onQuizDraftChange={handleQuizDraftChange}
                           onQuizSaved={handleQuizSaved}
+                          onAutoSave={async (lessonId) => {
+                            const result = await saveCourse();
+                            if (!result) return null;
+                            const lApiId = result.lessonIds[lessonId];
+                            if (!lApiId) return null;
+                            return { courseId: result.courseId, lessonApiId: lApiId };
+                          }}
                         />
                       ))}
                     </div>
