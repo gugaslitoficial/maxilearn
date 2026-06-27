@@ -213,7 +213,7 @@ export default function CursosPage() {
         </div>
 
         {isLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-[18px]">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4.5">
             {Array.from({ length: 6 }).map((_, i) => (
               <div key={i} style={{ background: "#fff", border: "1px solid #ece4e4", borderRadius: 16, overflow: "hidden" }}>
                 <Sk h={130} r={0} />
@@ -226,7 +226,7 @@ export default function CursosPage() {
             ))}
           </div>
         ) : viewMode === "grid" ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-[18px]">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4.5">
             {filtered.map((course) => {
               const tag = makeTag(course.title, course.category);
               const gradient = hashGradient(course.id);
@@ -412,5 +412,4 @@ function CourseBtn({ icon, label, onClick, danger }: { icon: React.ReactNode; la
   );
 }
 
-const cancelBtnStyle: React.CSSProperties = { padding: "11px 20px", borderRadius: 10, border: "1.5px solid #ece4e4", background: "#fff", fontSize: 14, fontWeight: 700, color: "#6a605e", cursor: "pointer" };
-const confirmBtnStyle: React.CSSProperties = { padding: "11px 20px", borderRadius: 10, border: "none", background: "#CC1F1F", fontSize: 14, fontWeight: 700, color: "#fff", cursor: "pointer", boxShadow: "0 4px 12px rgba(204,31,31,0.22)" };
+
