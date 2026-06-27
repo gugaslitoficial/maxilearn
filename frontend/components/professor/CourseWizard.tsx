@@ -1167,15 +1167,9 @@ export function CourseWizard({ initialCourseId, initialData, backHref, showTeach
       Object.assign(moduleApiIdsRef.current, localModuleIds);
       Object.assign(lessonApiIdsRef.current, localLessonIds);
 
-      if (publish) {
-        if (courseStatus === "PUBLISHED") {
-          setSaveToast(true);
-          setTimeout(() => setSaveToast(false), 3000);
-        } else {
-          // DRAFT → PUBLISHED or ARCHIVED → PUBLISHED
-          await api.patch(`/courses/${cId}/status`, { status: "PUBLISHED" });
-          setCourseStatus("PUBLISHED");
-        }
+      if (publish && courseStatus !== "PUBLISHED") {
+        await api.patch(`/courses/${cId}/status`, { status: "PUBLISHED" });
+        setCourseStatus("PUBLISHED");
       }
 
       qc.invalidateQueries({ queryKey: ["courses-professor"] });
@@ -1187,7 +1181,7 @@ export function CourseWizard({ initialCourseId, initialData, backHref, showTeach
         return;
       }
 
-      if (publish && courseStatus !== "PUBLISHED") {
+      if (publish) {
         router.push(backHref ?? "/professor/cursos");
       }
     } catch (err: unknown) {
