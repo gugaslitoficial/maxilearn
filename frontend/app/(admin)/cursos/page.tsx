@@ -86,16 +86,15 @@ export default function CursosPage() {
   const archiveCourse = useArchiveCourse();
   const deleteCourse = useDeleteCourse();
 
-  // Derive unique categories from loaded data
-  const categories = useMemo(() => {
-    if (!data?.data) return [];
-    return [...new Set(data.data.map((c) => c.category).filter(Boolean))] as string[];
-  }, [data?.data]);
+  const courseList = data?.data ?? [];
 
-  // Client-side professor filter (API doesn't support filtering by teacher name)
-  const filtered = useMemo(() => {
-    return data?.data ?? [];
-  }, [data?.data]);
+  // Derive unique categories from loaded data
+  const categories = useMemo(
+    () => [...new Set(courseList.map((c) => c.category).filter(Boolean))] as string[],
+    [courseList],
+  );
+
+  const filtered = courseList;
 
   async function handleArchive() {
     if (!deleteTarget) return;
@@ -267,7 +266,7 @@ export default function CursosPage() {
                         <CourseBtn icon={<Eye size={14} />} label="Visualizar" onClick={() => router.push(`/curso/${course.id}`)} />
                         <CourseBtn icon={<Users size={13} />} label="Matrículas" onClick={() => router.push(`/cursos/${course.id}/matriculas`)} />
                         <CourseBtn icon={<Pencil size={13} />} label="Editar" onClick={() => router.push(`/cursos/${course.id}/editar`)} />
-                        <CourseBtn icon={<Trash2 size={13} />} label="Arquivar" danger onClick={() => setDeleteTarget(course)} />
+                        <CourseBtn icon={<Trash2 size={13} />} label="Excluir" danger onClick={() => setDeleteTarget(course)} />
                       </div>
                     </div>
                   </div>
@@ -342,12 +341,12 @@ export default function CursosPage() {
       {/* Delete Modal — 3-button */}
       {deleteTarget && (
         <div
-          style={{ position: "fixed", inset: 0, background: "rgba(20,10,10,0.5)", backdropFilter: "blur(2px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, zIndex: 50 }}
+          style={{ position: "fixed", inset: 0, background: "rgba(20,10,10,0.5)", backdropFilter: "blur(2px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, zIndex: 50, overflowY: "auto" }}
           onClick={() => setDeleteTarget(null)}
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            style={{ background: "#fff", borderRadius: 18, width: "100%", maxWidth: 440, boxShadow: "0 30px 70px rgba(0,0,0,0.28)", overflow: "hidden" }}
+            style={{ background: "#fff", borderRadius: 18, width: "100%", maxWidth: 440, boxShadow: "0 30px 70px rgba(0,0,0,0.28)", overflow: "visible", flexShrink: 0 }}
           >
             <div style={{ padding: "28px 28px 0" }}>
               <div style={{ width: 52, height: 52, borderRadius: 14, background: "#fceeee", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
