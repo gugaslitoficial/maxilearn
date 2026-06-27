@@ -11,7 +11,7 @@ import {
 import { QUIZ_STATUS_LABEL, type ApiQuizStatus } from "@/lib/utils";
 import { Toast } from "@/components/ui/Toast";
 
-const PRIMARY = "#CC1F1F";
+const PRIMARY = "var(--color-primary)";
 
 const STATUS_STYLE: Record<ApiQuizStatus, { color: string; bg: string; border: string }> = {
   PUBLISHED: { color: "#1f8a5b", bg: "#e8f5ee", border: "#cbe8d8" },

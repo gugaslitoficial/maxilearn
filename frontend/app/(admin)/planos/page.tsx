@@ -4,7 +4,7 @@ import { useState } from "react";
 
 // TODO: integrar com GET /admin/plans e POST/PUT/DELETE /admin/plans/:id
 
-const PRIMARY = "#CC1F1F";
+const PRIMARY = "var(--color-primary)";
 
 interface Plan {
   id: string;

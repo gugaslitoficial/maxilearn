@@ -13,7 +13,7 @@ import { PlayerSidebar } from "@/components/player/PlayerSidebar";
 import { Toast } from "@/components/ui/Toast";
 import { api } from "@/lib/api";
 
-const PRIMARY = "#CC1F1F";
+const PRIMARY = "var(--color-primary)";
 
 type Tab = "mat" | "notes" | "disc";
 type QuizView = "idle" | "start" | "answering" | "result";

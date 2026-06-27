@@ -8,7 +8,7 @@ import type { ApiCourseLevel } from "@/lib/utils";
 import type { CatalogCourse, CatalogEnrollStatus } from "@/hooks/use-catalog";
 import { Toast } from "@/components/ui/Toast";
 
-const PRIMARY = "#CC1F1F";
+const PRIMARY = "var(--color-primary)";
 
 const LEVEL_STYLES: Record<string, { color: string; bg: string }> = {
   BASIC:        { color: "#1f8a5b", bg: "#e8f5ee" },

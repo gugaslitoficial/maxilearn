@@ -6,7 +6,7 @@ import axios from "axios";
 import type { CSSProperties, Dispatch, SetStateAction } from "react";
 import { useAuth } from "@/hooks/use-auth";
 
-const PRIMARY = "#CC1F1F";
+const PRIMARY = "var(--color-primary)";
 
 type Step = 0 | 1 | 2;
 type Plan = "starter" | "pro" | "ent";

@@ -7,7 +7,7 @@ import { useCatalog } from "@/hooks/use-catalog";
 import { useCertificates } from "@/hooks/use-certificates";
 import { hashGradient, makeTag } from "@/lib/utils";
 
-const PRIMARY = "#CC1F1F";
+const PRIMARY = "var(--color-primary)";
 const BAR_COLORS = ["#cbe8d8", "#86ceaa", "#43b787", "#1f8a5b"];
 
 const ACHIEVEMENT_ICONS: Record<string, React.ReactNode> = {

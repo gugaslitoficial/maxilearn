@@ -16,7 +16,7 @@ import type { KpiItem, OverviewPeriod } from "@/hooks/use-admin-overview";
 import { useAuth } from "@/hooks/use-auth";
 import { hashAvatarColor } from "@/lib/utils";
 
-const PRIMARY = "#CC1F1F";
+const PRIMARY = "var(--color-primary)";
 
 const METRIC_ICONS = [Users, BookOpen, CheckCircle, Clock];
 type MetricKey = "totalUsers" | "activeCourses" | "completionRate" | "activeToday";

@@ -7,7 +7,7 @@ import type { Certificate } from "@/hooks/use-certificates";
 import { Toast } from "@/components/ui/Toast";
 import { hashGradient, makeTag } from "@/lib/utils";
 
-const PRIMARY = "#CC1F1F";
+const PRIMARY = "var(--color-primary)";
 
 function Skeleton({ w, h, radius = 8 }: { w: string | number; h: number; radius?: number }) {
   return (

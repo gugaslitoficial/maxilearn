@@ -12,7 +12,7 @@ import {
   type ApiCourseLevel,
 } from "@/lib/utils";
 
-const PRIMARY = "#CC1F1F";
+const PRIMARY = "var(--color-primary)";
 
 function Sk({ w, h, r = 8 }: { w?: number | string; h: number; r?: number }) {
   return (

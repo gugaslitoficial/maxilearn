@@ -6,7 +6,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { api } from "@/lib/api";
 import { Toast } from "@/components/ui/Toast";
 
-const PRIMARY = "#CC1F1F";
+const PRIMARY = "var(--color-primary)";
 type Tab = "dados" | "seg" | "pref" | "assin";
 
 const INPUT_STYLE: React.CSSProperties = {

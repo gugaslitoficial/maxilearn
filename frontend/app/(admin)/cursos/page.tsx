@@ -21,7 +21,7 @@ import {
 } from "@/lib/utils";
 import type { ApiCourseStatus } from "@/lib/utils";
 
-const PRIMARY = "#CC1F1F";
+const PRIMARY = "var(--color-primary)";
 
 const STATUS_BADGE: Record<ApiCourseStatus, "published" | "draft" | "archived"> = {
   PUBLISHED: "published",

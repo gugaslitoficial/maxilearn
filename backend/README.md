@@ -21,6 +21,18 @@
   <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
   [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
 
+## Limitações Conhecidas
+
+### Upload de Arquivos (Materiais de Aula)
+Atualmente o projeto **não possui um serviço de storage de arquivos** integrado. Os materiais de aula são cadastrados apenas como URLs externas (links). Isso significa que:
+
+- Arquivos do **Google Drive** exigem login do Google quando incorporados via iframe, devido a bloqueio de cookies de terceiros nos navegadores modernos.
+- O **Render** (plataforma de hospedagem atual) não oferece storage persistente no plano gratuito — arquivos salvos no servidor são perdidos a cada deploy ou reinício.
+
+**Solução necessária:** integrar um serviço de storage externo (ex: Cloudinary, AWS S3, Cloudflare R2 ou Supabase Storage) para hospedar os arquivos e servir URLs públicas diretas que possam ser incorporadas sem autenticação.
+
+---
+
 ## Description
 
 [Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.

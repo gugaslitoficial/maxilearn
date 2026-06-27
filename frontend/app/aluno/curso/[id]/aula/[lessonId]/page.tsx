@@ -9,7 +9,7 @@ import type { SubmitResult, QuizOption, QuizQuestion } from "@/hooks/use-quiz-st
 import { PlayerSidebar } from "@/components/player/PlayerSidebar";
 import { Toast } from "@/components/ui/Toast";
 
-const PRIMARY = "#CC1F1F";
+const PRIMARY = "var(--color-primary)";
 
 type Tab = "mat" | "notes" | "disc";
 type QuizView = "idle" | "start" | "answering" | "result";

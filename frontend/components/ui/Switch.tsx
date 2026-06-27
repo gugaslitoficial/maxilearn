@@ -6,7 +6,7 @@ interface SwitchProps {
   ariaLabel?: string;
 }
 
-const PRIMARY = "#CC1F1F";
+const PRIMARY = "var(--color-primary)";
 
 export function Switch({ checked, onChange, ariaLabel }: SwitchProps) {
   return (

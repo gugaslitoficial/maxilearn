@@ -24,7 +24,7 @@ import {
 } from "@/lib/utils";
 import type { ApiRole } from "@/lib/utils";
 
-const PRIMARY = "#CC1F1F";
+const PRIMARY = "var(--color-primary)";
 const PER_PAGE = 20;
 
 const ROLE_BADGE_VARIANT: Record<ApiRole, "admin" | "professor" | "estudante"> = {

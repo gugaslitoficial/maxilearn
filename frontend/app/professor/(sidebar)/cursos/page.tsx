@@ -18,7 +18,7 @@ import {
 } from "@/lib/utils";
 import { Toast } from "@/components/ui/Toast";
 
-const PRIMARY = "#CC1F1F";
+const PRIMARY = "var(--color-primary)";
 
 function Sk({ w, h, r = 8 }: { w?: number | string; h: number; r?: number }) {
   return (

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { ModuleWithStatus } from "@/hooks/use-course-detail";
 
-const PRIMARY = "#CC1F1F";
+const PRIMARY = "var(--color-primary)";
 
 export interface PlayerSidebarProps {
   courseId: string;

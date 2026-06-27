@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useNotifications } from "@/hooks/use-notifications";
 import type { NotifType } from "@/hooks/use-notifications";
 
-const PRIMARY = "#CC1F1F";
+const PRIMARY = "var(--color-primary)";
 
 const TYPES: Record<NotifType, { color: string; bg: string; label: string; paths: string[] }> = {
   aluno: { color: "#3a6ea5", bg: "#e9f0f8", label: "Novo aluno",    paths: ["M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2", "M9 7a4 4 0 1 0 0 0.01", "M19 8v6", "M22 11h-6"] },

@@ -8,7 +8,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { LEVEL_LABEL } from "@/lib/utils";
 import type { ApiCourseLevel } from "@/lib/utils";
 
-const PRIMARY = "#CC1F1F";
+const PRIMARY = "var(--color-primary)";
 
 function Skeleton({ w, h, radius = 8 }: { w: string | number; h: number; radius?: number }) {
   return (

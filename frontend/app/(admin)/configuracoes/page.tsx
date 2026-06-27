@@ -8,7 +8,7 @@ import { Toast } from "@/components/ui/Toast";
 import { useCompany, useUpdateCompany } from "@/hooks/use-company";
 import { getErrorMessage } from "@/lib/utils";
 
-const PRIMARY = "#CC1F1F";
+const PRIMARY = "var(--color-primary)";
 
 type Tab = "dados" | "plano" | "notificacoes" | "seguranca";
 

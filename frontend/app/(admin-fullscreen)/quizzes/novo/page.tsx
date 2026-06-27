@@ -7,7 +7,7 @@ import { useCoursesAdmin } from "@/hooks/use-courses-admin";
 import { useCreateQuiz } from "@/hooks/use-quizzes";
 import { Toast } from "@/components/ui/Toast";
 
-const PRIMARY = "#CC1F1F";
+const PRIMARY = "var(--color-primary)";
 
 type QuestionType = "multiple" | "truefalse";
 

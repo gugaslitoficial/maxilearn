@@ -27,7 +27,7 @@ import type { CourseEditorData } from "@/hooks/use-course-editor";
 import { useProfessors } from "@/hooks/use-users";
 import { useQuizzes } from "@/hooks/use-quizzes";
 
-const PRIMARY = "#CC1F1F";
+const PRIMARY = "var(--color-primary)";
 
 type CourseLevel = "basico" | "inter" | "avanc";
 type Visibility = "publico" | "restrito";

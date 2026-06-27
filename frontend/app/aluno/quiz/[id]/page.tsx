@@ -6,7 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useQuizStudent, useSubmitQuiz } from "@/hooks/use-quiz-student";
 import type { SubmitResult, AnswerDetail, QuizQuestion } from "@/hooks/use-quiz-student";
 
-const PRIMARY = "#CC1F1F";
+const PRIMARY = "var(--color-primary)";
 
 type QuizView = "start" | "quiz" | "result";
 

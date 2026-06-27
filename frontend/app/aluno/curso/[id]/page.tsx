@@ -10,7 +10,7 @@ import { LEVEL_LABEL } from "@/lib/utils";
 import type { ApiCourseLevel } from "@/lib/utils";
 import type { ModuleWithStatus } from "@/hooks/use-course-detail";
 
-const PRIMARY = "#CC1F1F";
+const PRIMARY = "var(--color-primary)";
 
 const MODULE_BADGE = {
   done:     { color: "#1f8a5b", bg: "#e8f5ee", border: "1px solid #cbe8d8", label: "Concluído" },

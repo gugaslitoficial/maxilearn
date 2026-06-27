@@ -6,7 +6,7 @@ import { useProfessorStudents, type ApiProfessorStudent } from "@/hooks/use-prof
 import { useCoursesProfessorAll } from "@/hooks/use-courses-professor";
 import { hashAvatarColor, makeInitials, STUDENT_PROGRESS_LABEL, type StudentProgressStatus } from "@/lib/utils";
 
-const PRIMARY = "#CC1F1F";
+const PRIMARY = "var(--color-primary)";
 
 function Sk({ w, h, r = 6 }: { w?: number | string; h: number; r?: number }) {
   return (

@@ -7,7 +7,7 @@ import type { ReactNode, ComponentType } from "react";
 import { Menu, X, LogOut } from "lucide-react";
 import { NotificationsDropdown } from "@/components/ui/NotificationsDropdown";
 
-const PRIMARY = "#CC1F1F";
+const PRIMARY = "var(--color-primary)";
 
 export interface NavItem {
   key: string;

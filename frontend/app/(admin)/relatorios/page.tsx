@@ -16,7 +16,7 @@ import type { ReportPeriod } from "@/hooks/use-reports";
 import { api } from "@/lib/api";
 import { hashAvatarColor } from "@/lib/utils";
 
-const PRIMARY = "#CC1F1F";
+const PRIMARY = "var(--color-primary)";
 
 const PERIOD_OPTIONS = [
   { label: "7 dias", value: 7 as ReportPeriod },

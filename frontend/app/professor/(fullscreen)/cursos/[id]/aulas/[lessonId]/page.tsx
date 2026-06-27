@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useCourseEditor, useCreateLesson, useUpdateLesson } from "@/hooks/use-course-editor";
 import { Toast } from "@/components/ui/Toast";
 
-const PRIMARY = "#CC1F1F";
+const PRIMARY = "var(--color-primary)";
 
 type TabType = "url" | "upload";
 
