@@ -180,7 +180,7 @@ model Enrollment {
   approvedAt  DateTime?
 
   student User   @relation(fields: [studentId], references: [id])
-  course  Course @relation(fields: [courseId], references: [id])
+  course  Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
 
   @@unique([studentId, courseId])
   @@index([studentId])
@@ -195,7 +195,7 @@ model LessonProgress {
   completedAt DateTime?
 
   student User   @relation(fields: [studentId], references: [id])
-  lesson  Lesson @relation(fields: [lessonId], references: [id])
+  lesson  Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
 
   @@unique([studentId, lessonId])
   @@index([studentId])
@@ -251,7 +251,7 @@ model QuizSubmission {
   attemptNumber Int
   submittedAt   DateTime @default(now())
 
-  quiz    Quiz @relation(fields: [quizId], references: [id])
+  quiz    Quiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
   student User @relation(fields: [studentId], references: [id])
 
   @@index([quizId])
@@ -272,7 +272,7 @@ model Certificate {
   courseDuration String?
 
   student User    @relation(fields: [studentId], references: [id])
-  course  Course  @relation(fields: [courseId], references: [id])
+  course  Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
   company Company @relation(fields: [companyId], references: [id])
 
   @@unique([studentId, courseId])
