@@ -12,6 +12,7 @@ import { QuizzesModule } from './quizzes/quizzes.module';
 import { ReportsModule } from './reports/reports.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { CourseQuestionsModule } from './course-questions/course-questions.module';
+import { UploadModule } from './upload/upload.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { CourseQuestionsModule } from './course-questions/course-questions.modul
     ReportsModule,
     NotificationsModule,
     CourseQuestionsModule,
+    UploadModule,
   ],
   controllers: [AppController],
   providers: [AppService],

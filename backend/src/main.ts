@@ -2,6 +2,8 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { join } from 'path';
+import { mkdirSync } from 'fs';
 
 async function bootstrap() {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -17,6 +19,12 @@ async function bootstrap() {
   });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.useGlobalFilters(new HttpExceptionFilter());
+
+  const uploadsDir = join(process.cwd(), 'uploads');
+  mkdirSync(uploadsDir, { recursive: true });
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  app.use('/uploads', require('express').static(uploadsDir));
+
   await app.listen(process.env.PORT ?? 3001);
 }
 bootstrap();
