@@ -36,6 +36,7 @@ export interface CreateUserPayload {
   name: string;
   email: string;
   role: ApiRole;
+  password?: string;
   sendInvite?: boolean;
 }
 

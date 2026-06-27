@@ -74,7 +74,8 @@ export default function UsuariosPage() {
   const [deleteTarget, setDeleteTarget] = useState<ApiUser | null>(null);
   const [editTarget, setEditTarget] = useState<ApiUser | null>(null);
   const [toast, setToast] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: "", email: "", role: "STUDENT" as ApiRole, sendInvite: true });
+  const [form, setForm] = useState({ name: "", email: "", role: "STUDENT" as ApiRole, password: "", sendInvite: true });
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -104,10 +105,11 @@ export default function UsuariosPage() {
   async function handleAddUser() {
     if (!form.name.trim() || !form.email.trim()) return;
     try {
-      await createUser.mutateAsync({ name: form.name, email: form.email, role: form.role, sendInvite: form.sendInvite });
+      await createUser.mutateAsync({ name: form.name, email: form.email, role: form.role, password: form.password || undefined, sendInvite: form.sendInvite });
       setModalOpen(false);
       setToast("Usuário adicionado com sucesso!");
-      setForm({ name: "", email: "", role: "STUDENT", sendInvite: true });
+      setForm({ name: "", email: "", role: "STUDENT", password: "", sendInvite: true });
+      setShowPassword(false);
     } catch (err) {
       setToast(getErrorMessage(err));
     }
@@ -394,7 +396,7 @@ export default function UsuariosPage() {
       {/* Add User Modal */}
       <Modal
         open={modalOpen}
-        onClose={() => setModalOpen(false)}
+        onClose={() => { setModalOpen(false); setShowPassword(false); setForm({ name: "", email: "", role: "STUDENT", password: "", sendInvite: true }); }}
         title="Adicionar usuário"
         subtitle="Preencha os dados do novo usuário."
         footer={
@@ -414,6 +416,31 @@ export default function UsuariosPage() {
           <div>
             <Label>E-mail</Label>
             <input type="email" placeholder="maria@empresa.com" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} style={inputStyle} />
+          </div>
+          <div>
+            <Label>Senha</Label>
+            <div style={{ position: "relative" }}>
+              <input
+                type={showPassword ? "text" : "password"}
+                placeholder="Mínimo 8 caracteres (deixe em branco para gerar automaticamente)"
+                value={form.password}
+                onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+                style={{ ...inputStyle, paddingRight: 42 }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#a89e9c", padding: 0, display: "flex" }}
+              >
+                {showPassword
+                  ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                  : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                }
+              </button>
+            </div>
+            <div style={{ fontSize: 12, fontWeight: 500, color: "#a89e9c", marginTop: 5 }}>
+              Se não preencher, uma senha aleatória será gerada e o usuário precisará redefini-la.
+            </div>
           </div>
           <div>
             <Label>Perfil</Label>
