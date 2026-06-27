@@ -820,6 +820,8 @@ export function CourseWizard({ initialCourseId, initialData, backHref, showTeach
   });
   const moduleApiIdsRef = useRef(moduleApiIds);
   const lessonApiIdsRef = useRef(lessonApiIds);
+  const pendingModuleDeletes = useRef<string[]>([]);
+  const pendingLessonDeletes = useRef<{ moduleApiId: string; lessonApiId: string }[]>([]);
 
   // UX state
   const [expandedLessonId, setExpandedLessonId] = useState<string | null>(null);
@@ -926,10 +928,33 @@ export function CourseWizard({ initialCourseId, initialData, backHref, showTeach
   function deleteLesson(moduleId: string, lessonId: string) {
     setModules((prev) => prev.map((m) => m.id !== moduleId ? m : { ...m, lessons: m.lessons.filter((l) => l.id !== lessonId) }));
     if (expandedLessonId === lessonId) setExpandedLessonId(null);
+    const lApiId = lessonApiIdsRef.current[lessonId];
+    const mApiId = moduleApiIdsRef.current[moduleId];
+    if (lApiId && mApiId && savedCourseId) {
+      delete lessonApiIdsRef.current[lessonId];
+      pendingLessonDeletes.current.push({ moduleApiId: mApiId, lessonApiId: lApiId });
+      api.delete(`/courses/${savedCourseId}/modules/${mApiId}/lessons/${lApiId}`)
+        .then(() => {
+          pendingLessonDeletes.current = pendingLessonDeletes.current.filter(
+            (d) => !(d.moduleApiId === mApiId && d.lessonApiId === lApiId),
+          );
+        })
+        .catch(() => { /* mantido em pendingLessonDeletes para reprocessar em saveCourse */ });
+    }
   }
 
   function deleteModule(moduleId: string) {
     setModules((prev) => prev.filter((m) => m.id !== moduleId));
+    const mApiId = moduleApiIdsRef.current[moduleId];
+    if (mApiId && savedCourseId) {
+      delete moduleApiIdsRef.current[moduleId];
+      pendingModuleDeletes.current.push(mApiId);
+      api.delete(`/courses/${savedCourseId}/modules/${mApiId}`)
+        .then(() => {
+          pendingModuleDeletes.current = pendingModuleDeletes.current.filter((id) => id !== mApiId);
+        })
+        .catch(() => { /* mantido em pendingModuleDeletes para reprocessar em saveCourse */ });
+    }
   }
 
   function updateModuleTitle(moduleId: string, title: string) {
@@ -1070,6 +1095,36 @@ export function CourseWizard({ initialCourseId, initialData, backHref, showTeach
         await api.patch(`/courses/${cId}`, payload);
       }
 
+      // Reprocessa deleções que falharam na chamada imediata
+      let hasDeleteErrors = false;
+      const remainingModDeletes: string[] = [];
+      for (const mApiId of pendingModuleDeletes.current) {
+        try {
+          await api.delete(`/courses/${cId}/modules/${mApiId}`);
+        } catch (err: unknown) {
+          const status = (err as { response?: { status?: number } })?.response?.status;
+          if (status !== 404) { remainingModDeletes.push(mApiId); hasDeleteErrors = true; }
+          // 404 = já deletado com sucesso anteriormente, ignora
+        }
+      }
+      pendingModuleDeletes.current = remainingModDeletes;
+
+      const remainingLsnDeletes: { moduleApiId: string; lessonApiId: string }[] = [];
+      for (const d of pendingLessonDeletes.current) {
+        if (remainingModDeletes.includes(d.moduleApiId)) {
+          // Módulo pai ainda falhou; mantém para próxima tentativa
+          remainingLsnDeletes.push(d);
+          continue;
+        }
+        try {
+          await api.delete(`/courses/${cId}/modules/${d.moduleApiId}/lessons/${d.lessonApiId}`);
+        } catch (err: unknown) {
+          const status = (err as { response?: { status?: number } })?.response?.status;
+          if (status !== 404) { remainingLsnDeletes.push(d); hasDeleteErrors = true; }
+        }
+      }
+      pendingLessonDeletes.current = remainingLsnDeletes;
+
       const localModuleIds = { ...moduleApiIdsRef.current };
       const localLessonIds = { ...lessonApiIdsRef.current };
 
@@ -1126,6 +1181,11 @@ export function CourseWizard({ initialCourseId, initialData, backHref, showTeach
       qc.invalidateQueries({ queryKey: ["courses-professor"] });
       qc.invalidateQueries({ queryKey: ["courses-admin"] });
       qc.invalidateQueries({ queryKey: ["course-editor", cId] });
+
+      if (hasDeleteErrors) {
+        setSaveError("Alguns itens não foram excluídos do servidor. Verifique sua conexão e tente salvar novamente.");
+        return;
+      }
 
       if (publish && courseStatus !== "PUBLISHED") {
         router.push(backHref ?? "/professor/cursos");
