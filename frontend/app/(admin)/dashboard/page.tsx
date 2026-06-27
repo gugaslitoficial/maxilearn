@@ -87,7 +87,6 @@ export default function DashboardPage() {
 
   return (
     <>
-      {/* Topbar */}
       <header
         style={{
           background: "#fff",
@@ -207,8 +206,6 @@ export default function DashboardPage() {
           </Link>
         </div>
       </header>
-
-      {/* Content */}
       <div
         style={{
           flex: 1,
@@ -218,8 +215,7 @@ export default function DashboardPage() {
           gap: 22,
         }}
       >
-        {/* Metric cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-[18px]">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4.5">
           {METRIC_KEYS.map((key, i) => {
             const Icon = METRIC_ICONS[i];
             const kpi = data?.kpis[key];
@@ -263,10 +259,7 @@ export default function DashboardPage() {
             );
           })}
         </div>
-
-        {/* Chart + Activity */}
-        <div className="grid grid-cols-1 lg:grid-cols-[1.7fr_1fr] gap-[22px]">
-          {/* Engagement chart */}
+        <div className="grid grid-cols-1 lg:grid-cols-[1.7fr_1fr] gap-5.5">
           <div
             style={{
               background: "#fff",
@@ -348,8 +341,6 @@ export default function DashboardPage() {
               )}
             </div>
           </div>
-
-          {/* Activity feed */}
           <div
             style={{
               background: "#fff",
@@ -428,8 +419,6 @@ export default function DashboardPage() {
             </Link>
           </div>
         </div>
-
-        {/* Top courses table */}
         <div
           style={{
             background: "#fff",

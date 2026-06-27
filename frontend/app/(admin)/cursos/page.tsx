@@ -119,7 +119,6 @@ export default function CursosPage() {
 
   return (
     <>
-      {/* Topbar */}
       <header
         style={{
           background: "#fff",
@@ -163,7 +162,6 @@ export default function CursosPage() {
       </header>
 
       <div style={{ flex: 1, padding: "clamp(20px,3vw,32px)", display: "flex", flexDirection: "column", gap: 20 }}>
-        {/* Filters */}
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
           <div style={{ position: "relative", flex: "1 1 220px", minWidth: 180 }}>
             <Search size={15} color="#a89e9c" style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
@@ -336,8 +334,6 @@ export default function CursosPage() {
           </div>
         )}
       </div>
-
-      {/* Delete Modal — 3-button */}
       {deleteTarget && (
         <div
           style={{ position: "fixed", inset: 0, background: "rgba(20,10,10,0.5)", backdropFilter: "blur(2px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, zIndex: 50, overflowY: "auto" }}
@@ -411,5 +407,3 @@ function CourseBtn({ icon, label, onClick, danger }: { icon: React.ReactNode; la
     </button>
   );
 }
-
-

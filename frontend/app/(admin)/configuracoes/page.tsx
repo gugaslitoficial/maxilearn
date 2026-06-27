@@ -95,6 +95,7 @@ export default function ConfiguracoesPage() {
 
   useEffect(() => {
     if (!company) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setDados({
       name: company.name ?? "",
       cnpj: company.cnpj ?? "",
