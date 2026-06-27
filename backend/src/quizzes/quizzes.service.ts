@@ -209,6 +209,21 @@ export class QuizzesService {
       };
     });
 
+    if (user.role === Role.STUDENT && full.shuffleQuestions) {
+      for (let i = questions.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [questions[i], questions[j]] = [questions[j], questions[i]];
+      }
+      questions = questions.map((q) => {
+        const opts = [...q.options];
+        for (let i = opts.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [opts[i], opts[j]] = [opts[j], opts[i]];
+        }
+        return { ...q, options: opts };
+      });
+    }
+
     const base = {
       id: full.id,
       title: full.title,
@@ -274,7 +289,6 @@ export class QuizzesService {
         title: dto.title,
         courseId: dto.courseId,
         companyId: user.companyId,
-        lessonId: dto.lessonId ?? null,
         minPassingScore: dto.minPassingScore ?? 70,
         maxAttempts: dto.maxAttempts ?? null,
         shuffleQuestions: dto.shuffleQuestions ?? false,

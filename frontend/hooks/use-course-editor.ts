@@ -58,6 +58,7 @@ export interface UpdateLessonPayload {
   order?: number;
   type?: string;
   materials?: unknown[];
+  quizId?: string | null;
 }
 
 async function fetchCourseWithModules(courseId: string): Promise<CourseEditorData> {

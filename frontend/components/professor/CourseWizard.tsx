@@ -25,6 +25,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type { CourseEditorData } from "@/hooks/use-course-editor";
 import { useProfessors } from "@/hooks/use-users";
+import { useQuizzes } from "@/hooks/use-quizzes";
 
 const PRIMARY = "#CC1F1F";
 
@@ -326,10 +327,17 @@ function QuizPanel({
   draft: QuizDraft;
   onDraftChange: (patch: Partial<QuizDraft>) => void;
   onSaved: (quizId: string, quizTitle: string) => void;
-  onAutoSave: () => Promise<{ courseId: string; lessonApiId: string } | null>;
+  onAutoSave: () => Promise<{ courseId: string; lessonApiId: string; moduleApiId: string } | null>;
 }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [bankMode, setBankMode] = useState(false);
+  const [bankSearch, setBankSearch] = useState("");
+  const { data: quizzesPage } = useQuizzes({ perPage: 200 });
+  const allQuizzes = quizzesPage?.data ?? [];
+  const filteredQuizzes = bankSearch.trim()
+    ? allQuizzes.filter((q) => q.title.toLowerCase().includes(bankSearch.toLowerCase()))
+    : allQuizzes;
 
   if (lesson.quizId) {
     return (
@@ -413,6 +421,29 @@ function QuizPanel({
     });
   }
 
+  async function linkQuizFromBank(selectedId: string, selectedTitle: string) {
+    setSaving(true);
+    setError(null);
+    try {
+      const saved = await onAutoSave();
+      if (!saved) {
+        setError("Não foi possível salvar o curso. Verifique os dados e tente novamente.");
+        return;
+      }
+      await api.patch(
+        `/courses/${saved.courseId}/modules/${saved.moduleApiId}/lessons/${saved.lessonApiId}`,
+        { quizId: selectedId },
+      );
+      onSaved(selectedId, selectedTitle);
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { message?: string | string[] } } };
+      const msg = err?.response?.data?.message;
+      setError(Array.isArray(msg) ? msg[0] : typeof msg === "string" ? msg : "Erro ao vincular quiz.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function saveQuiz() {
     if (!draft.title.trim()) {
       setError("Informe o título do quiz.");
@@ -423,24 +454,15 @@ function QuizPanel({
       return;
     }
 
-    let cId = savedCourseId;
-    let lId = lessonApiId;
-
-    if (!cId || !lId) {
-      setSaving(true);
+    setSaving(true);
+    setError(null);
+    try {
       const saved = await onAutoSave();
-      setSaving(false);
       if (!saved) {
         setError("Não foi possível salvar o curso. Verifique os dados e tente novamente.");
         return;
       }
-      cId = saved.courseId;
-      lId = saved.lessonApiId;
-    }
-
-    setSaving(true);
-    setError(null);
-    try {
+      const { courseId: cId, lessonApiId: lId, moduleApiId: mId } = saved;
       const questions = draft.questions.map((q, idx) => ({
         statement: q.statement,
         type: q.type,
@@ -453,13 +475,13 @@ function QuizPanel({
       const res = await api.post<{ id: string; title: string }>("/quizzes", {
         title: draft.title,
         courseId: cId,
-        lessonId: lId,
         maxAttempts: draft.maxAttempts,
         shuffleQuestions: draft.shuffleQuestions,
         showAnswersAfter: false,
         status: "PUBLISHED",
         questions,
       });
+      await api.patch(`/courses/${cId}/modules/${mId}/lessons/${lId}`, { quizId: res.data.id });
       onSaved(res.data.id, res.data.title || draft.title);
     } catch (e: unknown) {
       const err = e as { response?: { data?: { message?: string | string[] } } };
@@ -472,7 +494,59 @@ function QuizPanel({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+      {/* Mode toggle */}
+      <div style={{ display: "flex", gap: 0, background: "#f6f4f3", borderRadius: 10, padding: 3, width: "fit-content" }}>
+        <button type="button" onClick={() => setBankMode(false)}
+          style={{ fontFamily: "inherit", fontSize: 13, fontWeight: 700, padding: "7px 16px", borderRadius: 8, border: "none", cursor: "pointer", background: !bankMode ? "#fff" : "transparent", color: !bankMode ? "#16100f" : "#8a807e", boxShadow: !bankMode ? "0 1px 4px rgba(0,0,0,0.08)" : "none" }}>
+          Criar novo
+        </button>
+        <button type="button" onClick={() => setBankMode(true)}
+          style={{ fontFamily: "inherit", fontSize: 13, fontWeight: 700, padding: "7px 16px", borderRadius: 8, border: "none", cursor: "pointer", background: bankMode ? "#fff" : "transparent", color: bankMode ? "#16100f" : "#8a807e", boxShadow: bankMode ? "0 1px 4px rgba(0,0,0,0.08)" : "none" }}>
+          Usar do banco
+        </button>
+      </div>
+
+      {/* Bank selection mode */}
+      {bankMode && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <input
+            value={bankSearch}
+            onChange={(e) => setBankSearch(e.target.value)}
+            placeholder="Buscar quiz por título..."
+            style={{ ...inputS, fontSize: 13.5 }}
+          />
+          {filteredQuizzes.length === 0 ? (
+            <div style={{ fontSize: 13, fontWeight: 600, color: "#8a807e", padding: "12px 0", textAlign: "center" }}>
+              Nenhum quiz encontrado no banco.
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 300, overflowY: "auto" }}>
+              {filteredQuizzes.map((q) => (
+                <div key={q.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, background: "#faf7f7", border: "1px solid #eadfdf", borderRadius: 10, padding: "10px 14px" }}>
+                  <div>
+                    <div style={{ fontSize: 13.5, fontWeight: 700, color: "#16100f" }}>{q.title}</div>
+                    <div style={{ fontSize: 12, fontWeight: 500, color: "#8a807e", marginTop: 2 }}>
+                      {q.questionCount} {q.questionCount === 1 ? "pergunta" : "perguntas"} · {q.courseName}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={saving}
+                    onClick={() => linkQuizFromBank(q.id, q.title)}
+                    style={{ fontFamily: "inherit", fontSize: 12.5, fontWeight: 800, color: "#fff", background: PRIMARY, border: "none", borderRadius: 8, padding: "7px 14px", cursor: "pointer", flexShrink: 0, opacity: saving ? 0.7 : 1 }}
+                  >
+                    {saving ? "Vinculando…" : "Selecionar"}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          {error && <div style={{ fontSize: 13, fontWeight: 600, color: PRIMARY, background: "#fceeee", border: "1px solid #f6d6d6", borderRadius: 8, padding: "10px 14px" }}>{error}</div>}
+        </div>
+      )}
+
+      {/* Create new mode */}
+      {!bankMode && <><div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
         <div style={{ flex: "1 1 200px" }}>
           <label style={labelS}>Título do quiz</label>
           <input value={draft.title} onChange={(e) => onDraftChange({ title: e.target.value })} placeholder="Ex: Quiz de fixação" style={{ ...inputS, fontSize: 13.5 }} />
@@ -608,6 +682,7 @@ function QuizPanel({
           {saving ? "Salvando quiz…" : "Salvar quiz"}
         </button>
       </div>
+      </>}
     </div>
   );
 }
@@ -656,7 +731,7 @@ function SortableModule({
   onSaveLessonPanel: (moduleId: string, lessonId: string) => void;
   onQuizDraftChange: (lessonId: string, patch: Partial<QuizDraft>) => void;
   onQuizSaved: (moduleId: string, lessonId: string, quizId: string, quizTitle: string) => void;
-  onAutoSave: (lessonId: string) => Promise<{ courseId: string; lessonApiId: string } | null>;
+  onAutoSave: (lessonId: string) => Promise<{ courseId: string; lessonApiId: string; moduleApiId: string } | null>;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: module.id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
@@ -1214,7 +1289,7 @@ export function CourseWizard({ initialCourseId, initialData, backHref, showTeach
         router.push(backHref ?? "/professor/cursos");
       }
 
-      return { courseId: cId!, lessonIds: localLessonIds };
+      return { courseId: cId!, lessonIds: localLessonIds, moduleIds: localModuleIds };
     } catch (err: unknown) {
       const anyErr = err as { response?: { data?: { message?: string | string[] } } };
       const msg = anyErr?.response?.data?.message;
@@ -1603,7 +1678,9 @@ export function CourseWizard({ initialCourseId, initialData, backHref, showTeach
                             if (!result) return null;
                             const lApiId = result.lessonIds[lessonId];
                             if (!lApiId) return null;
-                            return { courseId: result.courseId, lessonApiId: lApiId };
+                            const containingMod = modules.find((m) => m.lessons.some((l) => l.id === lessonId));
+                            const mApiId = containingMod ? (result.moduleIds[containingMod.id] ?? '') : '';
+                            return { courseId: result.courseId, lessonApiId: lApiId, moduleApiId: mApiId };
                           }}
                         />
                       ))}

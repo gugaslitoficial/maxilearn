@@ -37,4 +37,8 @@ export class UpdateLessonDto {
   @IsArray()
   @IsOptional()
   materials?: unknown[];
+
+  @IsString()
+  @IsOptional()
+  quizId?: string | null;
 }

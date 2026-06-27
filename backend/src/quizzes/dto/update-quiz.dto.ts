@@ -37,7 +37,4 @@ export class UpdateQuizDto {
   @IsOptional()
   status?: QuizStatus;
 
-  @IsString()
-  @IsOptional()
-  lessonId?: string;
 }
