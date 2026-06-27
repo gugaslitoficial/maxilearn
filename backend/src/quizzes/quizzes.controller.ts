@@ -108,7 +108,7 @@ export class QuizzesController {
   // ─── Submissions ───────────────────────────────────────────────────────────
 
   @Post(':id/submit')
-  @Roles(Role.STUDENT)
+  @Roles(Role.STUDENT, Role.ADMIN, Role.PROFESSOR)
   submit(
     @Param('id') id: string,
     @CurrentUser() user: AuthenticatedUser,
