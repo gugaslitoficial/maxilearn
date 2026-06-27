@@ -838,6 +838,9 @@ export function CourseWizard({ initialCourseId, initialData, backHref, showTeach
       : ["Objetivo de aprendizado 1"]
   );
   const [thumbnailUrl, setThumbnailUrl] = useState(course?.thumbnailUrl ?? "");
+  const [thumbMode, setThumbMode] = useState<"url" | "upload">("url");
+  const [isThumbUploading, setIsThumbUploading] = useState(false);
+  const [thumbUploadError, setThumbUploadError] = useState<string | null>(null);
   const [download, setDownload] = useState(course?.allowDownload ?? true);
   const [certificateType, setCertificateType] = useState<"none" | "completion" | "approval">(
     (course as { certificateType?: string } | undefined)?.certificateType === "approval"
@@ -896,6 +899,25 @@ export function CourseWizard({ initialCourseId, initialData, backHref, showTeach
       if (oi === -1 || ni === -1) return m;
       return { ...m, lessons: arrayMove(m.lessons, oi, ni) };
     }));
+  }
+
+  async function handleThumbUpload(file: File) {
+    if (file.size > 5 * 1024 * 1024) {
+      setThumbUploadError("A imagem deve ter no máximo 5 MB.");
+      return;
+    }
+    setIsThumbUploading(true);
+    setThumbUploadError(null);
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const res = await api.post<{ url: string }>("/upload/image", formData);
+      setThumbnailUrl(res.data.url);
+    } catch {
+      setThumbUploadError("Erro ao enviar imagem. Tente novamente.");
+    } finally {
+      setIsThumbUploading(false);
+    }
   }
 
   function addModule() {
@@ -1340,18 +1362,97 @@ export function CourseWizard({ initialCourseId, initialData, backHref, showTeach
                     <input value={courseTitle} onChange={(e) => setCourseTitle(e.target.value)} placeholder="Ex.: Segurança no Trabalho" style={inputS} />
                   </div>
                   <div>
-                    <label style={labelS}>Imagem de capa (URL)</label>
-                    <input
-                      value={thumbnailUrl}
-                      onChange={(e) => setThumbnailUrl(e.target.value)}
-                      placeholder="https://exemplo.com/imagem.jpg"
-                      style={inputS}
-                    />
-                    {thumbnailUrl && (
-                      <div style={{ marginTop: 10, borderRadius: 10, overflow: "hidden", maxWidth: 300, border: "1px solid #eadfdf" }}>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={thumbnailUrl} alt="Capa do curso" style={{ width: "100%", display: "block", maxHeight: 160, objectFit: "cover" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                      <label style={{ ...labelS, marginBottom: 0 }}>Imagem de capa</label>
+                      <div style={{ display: "flex", border: "1px solid #eadfdf", borderRadius: 8, overflow: "hidden" }}>
+                        {(["url", "upload"] as const).map((mode) => (
+                          <button
+                            key={mode}
+                            type="button"
+                            onClick={() => setThumbMode(mode)}
+                            style={{
+                              fontFamily: "inherit", fontSize: 12, fontWeight: 700,
+                              padding: "5px 12px", border: "none", cursor: "pointer",
+                              transition: "background .15s, color .15s",
+                              background: thumbMode === mode ? PRIMARY : "#fff",
+                              color: thumbMode === mode ? "#fff" : "#6a605e",
+                            }}
+                          >
+                            {mode === "url" ? "URL" : "Upload"}
+                          </button>
+                        ))}
                       </div>
+                    </div>
+
+                    {thumbMode === "url" ? (
+                      <>
+                        <input
+                          value={thumbnailUrl}
+                          onChange={(e) => setThumbnailUrl(e.target.value)}
+                          placeholder="https://exemplo.com/imagem.jpg"
+                          style={inputS}
+                        />
+                        {thumbnailUrl && (
+                          <div style={{ marginTop: 10, borderRadius: 10, overflow: "hidden", maxWidth: 300, border: "1px solid #eadfdf" }}>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={thumbnailUrl} alt="Capa do curso" style={{ width: "100%", display: "block", maxHeight: 160, objectFit: "cover" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => { if (!isThumbUploading) (document.getElementById("thumb-upload-input") as HTMLInputElement)?.click(); }}
+                          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") (document.getElementById("thumb-upload-input") as HTMLInputElement)?.click(); }}
+                          onDragOver={(e) => e.preventDefault()}
+                          onDrop={(e) => { e.preventDefault(); const file = e.dataTransfer.files[0]; if (file) handleThumbUpload(file); }}
+                          style={{
+                            border: "2px dashed #e2d2d2", borderRadius: 11,
+                            padding: "24px 20px", textAlign: "center",
+                            cursor: isThumbUploading ? "wait" : "pointer",
+                            background: "#faf7f7", transition: "border-color .15s",
+                          }}
+                        >
+                          {isThumbUploading ? (
+                            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
+                              <div style={{ width: 24, height: 24, border: "3px solid #d8cccc", borderTopColor: PRIMARY, borderRadius: "50%", animation: "spin .6s linear infinite" }} />
+                              <span style={{ fontSize: 13, fontWeight: 600, color: "#8a807e" }}>Enviando...</span>
+                            </div>
+                          ) : thumbnailUrl ? (
+                            <div>
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={thumbnailUrl} alt="Capa do curso" style={{ maxHeight: 130, maxWidth: "100%", borderRadius: 8, objectFit: "cover", display: "block", margin: "0 auto" }} />
+                              <div style={{ fontSize: 12, fontWeight: 600, color: "#8a807e", marginTop: 8 }}>Clique ou arraste para trocar</div>
+                            </div>
+                          ) : (
+                            <>
+                              <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#c4b8b8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ margin: "0 auto 10px", display: "block" }}>
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                <polyline points="17 8 12 3 7 8"/>
+                                <line x1="12" y1="3" x2="12" y2="15"/>
+                              </svg>
+                              <div style={{ fontSize: 13.5, fontWeight: 700, color: "#6a605e" }}>Clique ou arraste uma imagem</div>
+                              <div style={{ fontSize: 12, fontWeight: 500, color: "#a89e9c", marginTop: 4 }}>JPG, PNG ou WEBP · máx. 5 MB</div>
+                            </>
+                          )}
+                        </div>
+                        <input
+                          id="thumb-upload-input"
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp,image/gif"
+                          style={{ display: "none" }}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleThumbUpload(file);
+                            e.target.value = "";
+                          }}
+                        />
+                        {thumbUploadError && (
+                          <div style={{ fontSize: 12.5, fontWeight: 600, color: PRIMARY, marginTop: 6 }}>{thumbUploadError}</div>
+                        )}
+                      </>
                     )}
                   </div>
                   <div>
