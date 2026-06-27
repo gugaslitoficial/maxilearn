@@ -21,15 +21,28 @@
   <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
   [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
 
-## Limitações Conhecidas
+## Storage de Arquivos e Imagens
 
-### Upload de Arquivos (Materiais de Aula)
-Atualmente o projeto **não possui um serviço de storage de arquivos** integrado. Os materiais de aula são cadastrados apenas como URLs externas (links). Isso significa que:
+O projeto armazena imagens e arquivos **diretamente no PostgreSQL** (coluna `bytea`), sem depender de serviço externo. Isso garante persistência no Render mesmo no plano gratuito, onde o disco do servidor web é efêmero.
 
-- Arquivos do **Google Drive** exigem login do Google quando incorporados via iframe, devido a bloqueio de cookies de terceiros nos navegadores modernos.
-- O **Render** (plataforma de hospedagem atual) não oferece storage persistente no plano gratuito — arquivos salvos no servidor são perdidos a cada deploy ou reinício.
+### Endpoints
 
-**Solução necessária:** integrar um serviço de storage externo (ex: Cloudinary, AWS S3, Cloudflare R2 ou Supabase Storage) para hospedar os arquivos e servir URLs públicas diretas que possam ser incorporadas sem autenticação.
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| `POST` | `/upload/image` | Imagens (JPG, PNG, WEBP, GIF — máx. 5 MB) |
+| `POST` | `/upload/file` | Arquivos de aula: PDF, Word, PowerPoint (máx. 20 MB) |
+| `GET` | `/upload/:id` | Serve o arquivo com `Content-Type` correto (público) |
+
+### Como usar
+
+O upload retorna `{ id, url }`. A `url` é `/upload/:id` e pode ser usada diretamente como `src` de imagens ou `href` de arquivos.
+
+- **Capa do curso:** envie para `POST /upload/image` → salve a `url` em `Course.thumbnailUrl`
+- **Material de aula:** envie para `POST /upload/file` → salve a `url` dentro do JSON `Lesson.materials`
+
+### Migração futura para storage externo
+
+Quando o volume crescer, basta substituir `UploadService.save()` e `UploadService.findById()` para usar S3/Cloudinary. O restante do código (controllers, frontend) não muda, pois consume apenas a URL.
 
 ---
 

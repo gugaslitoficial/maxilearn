@@ -1,40 +1,38 @@
 import {
   BadRequestException,
   Controller,
+  Get,
+  Param,
   Post,
-  Req,
+  Res,
   UploadedFile,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname, join } from 'path';
-import { mkdirSync } from 'fs';
-import type { Request } from 'express';
+import { memoryStorage } from 'multer';
+import type { Response } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
+import type { AuthenticatedUser } from '../common/decorators/current-user.decorator';
+import { UploadService } from './upload.service';
 
-const UPLOAD_DIR = join(process.cwd(), 'uploads');
+const IMAGE_MIME = /^image\/(jpeg|png|webp|gif)$/;
+const FILE_MIME =
+  /^(image\/(jpeg|png|webp|gif)|application\/(pdf|msword|vnd\.ms-powerpoint|vnd\.openxmlformats-officedocument\.(wordprocessingml\.document|presentationml\.presentation|spreadsheetml\.sheet)))$/;
 
 @Controller('upload')
-@UseGuards(JwtAuthGuard)
 export class UploadController {
+  constructor(private readonly uploads: UploadService) {}
+
   @Post('image')
+  @UseGuards(JwtAuthGuard)
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: diskStorage({
-        destination: (_req, _file, cb) => {
-          mkdirSync(UPLOAD_DIR, { recursive: true });
-          cb(null, UPLOAD_DIR);
-        },
-        filename: (_req, file, cb) => {
-          const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-          cb(null, `cover-${unique}${extname(file.originalname)}`);
-        },
-      }),
+      storage: memoryStorage(),
       limits: { fileSize: 5 * 1024 * 1024 },
       fileFilter: (_req, file, cb) => {
-        if (!file.mimetype.match(/^image\/(jpeg|png|webp|gif)$/)) {
+        if (!IMAGE_MIME.test(file.mimetype)) {
           return cb(
             new BadRequestException('Apenas imagens JPG, PNG, WEBP ou GIF são permitidas'),
             false,
@@ -44,9 +42,46 @@ export class UploadController {
       },
     }),
   )
-  uploadImage(@Req() req: Request, @UploadedFile() file: { filename: string }) {
+  uploadImage(
+    @CurrentUser() user: AuthenticatedUser,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
     if (!file) throw new BadRequestException('Nenhum arquivo enviado');
-    const url = `${req.protocol}://${req.get('host')}/uploads/${file.filename}`;
-    return { url };
+    return this.uploads.save(file, user.companyId);
+  }
+
+  @Post('file')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      limits: { fileSize: 20 * 1024 * 1024 },
+      fileFilter: (_req, file, cb) => {
+        if (!FILE_MIME.test(file.mimetype)) {
+          return cb(
+            new BadRequestException(
+              'Tipo de arquivo não permitido. Use PDF, Word, PowerPoint ou imagens.',
+            ),
+            false,
+          );
+        }
+        cb(null, true);
+      },
+    }),
+  )
+  uploadFile(
+    @CurrentUser() user: AuthenticatedUser,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    if (!file) throw new BadRequestException('Nenhum arquivo enviado');
+    return this.uploads.save(file, user.companyId);
+  }
+
+  @Get(':id')
+  async serve(@Param('id') id: string, @Res() res: Response) {
+    const upload = await this.uploads.findById(id);
+    res.setHeader('Content-Type', upload.mimeType);
+    res.setHeader('Content-Disposition', `inline; filename="${upload.filename}"`);
+    res.send(upload.data);
   }
 }

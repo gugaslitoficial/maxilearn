@@ -74,6 +74,7 @@ model Company {
   certificates    Certificate[]
   notifications   Notification[]
   courseQuestions CourseQuestion[]
+  uploads         Upload[]
 }
 
 model User {
@@ -332,4 +333,18 @@ model CourseQuestionReply {
 
   @@index([questionId])
   @@index([authorId])
+}
+
+model Upload {
+  id        String   @id @default(cuid())
+  filename  String
+  mimeType  String
+  size      Int
+  data      Bytes
+  companyId String
+  createdAt DateTime @default(now())
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
 }
