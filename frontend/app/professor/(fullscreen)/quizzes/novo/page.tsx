@@ -57,7 +57,6 @@ export default function NovoQuizPage() {
   const [minScore, setMinScore] = useState("70");
   const [maxAttempts, setMaxAttempts] = useState("2");
   const [shuffle, setShuffle] = useState(false);
-  const [showAnswers, setShowAnswers] = useState(true);
   const [questions, setQuestions] = useState<Question[]>([makeQuestion("multiple")]);
   const [toast, setToast] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -132,7 +131,7 @@ export default function NovoQuizPage() {
         minPassingScore: Number(minScore),
         maxAttempts: maxAttempts ? Number(maxAttempts) : null,
         shuffleQuestions: shuffle,
-        showAnswersAfter: showAnswers,
+        showAnswersAfter: false,
         status: publish ? "PUBLISHED" : "DRAFT",
         questions: mappedQuestions,
       });
@@ -301,12 +300,6 @@ export default function NovoQuizPage() {
                   <label style={{ fontSize: 13, fontWeight: 700, color: "#3a3030" }}>Embaralhar questões</label>
                   <button onClick={() => setShuffle((v) => !v)} type="button" style={{ position: "relative", width: 40, height: 23, borderRadius: 100, border: "none", cursor: "pointer", flexShrink: 0, background: shuffle ? PRIMARY : "#d8cccc", transition: "background .2s" }}>
                     <div style={{ position: "absolute", top: 2, left: shuffle ? 18 : 2, width: 19, height: 19, borderRadius: "50%", background: "#fff", boxShadow: "0 2px 5px rgba(0,0,0,0.2)", transition: "left .2s" }} />
-                  </button>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-                  <label style={{ fontSize: 13, fontWeight: 700, color: "#3a3030" }}>Mostrar gabarito ao fim</label>
-                  <button onClick={() => setShowAnswers((v) => !v)} type="button" style={{ position: "relative", width: 40, height: 23, borderRadius: 100, border: "none", cursor: "pointer", flexShrink: 0, background: showAnswers ? PRIMARY : "#d8cccc", transition: "background .2s" }}>
-                    <div style={{ position: "absolute", top: 2, left: showAnswers ? 18 : 2, width: 19, height: 19, borderRadius: "50%", background: "#fff", boxShadow: "0 2px 5px rgba(0,0,0,0.2)", transition: "left .2s" }} />
                   </button>
                 </div>
               </div>

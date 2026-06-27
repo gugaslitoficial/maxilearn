@@ -272,7 +272,7 @@ export class QuizzesService {
         minPassingScore: dto.minPassingScore ?? 70,
         maxAttempts: dto.maxAttempts ?? null,
         shuffleQuestions: dto.shuffleQuestions ?? false,
-        showAnswersAfter: dto.showAnswersAfter ?? true,
+        showAnswersAfter: false,
         status: dto.status ?? 'DRAFT',
         questions: { create: questionsData },
       },
@@ -552,10 +552,6 @@ export class QuizzesService {
       attemptsRemaining,
       certificateIssued,
     };
-
-    if (quiz.showAnswersAfter) {
-      result['answers'] = answerDetails;
-    }
 
     return result;
   }

@@ -442,7 +442,7 @@ function QuizPanel({
         lessonId: lessonApiId,
         maxAttempts: draft.maxAttempts,
         shuffleQuestions: draft.shuffleQuestions,
-        showAnswersAfter: draft.showAnswersAfter,
+        showAnswersAfter: false,
         status: "PUBLISHED",
         questions,
       });
@@ -472,10 +472,6 @@ function QuizPanel({
         <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13.5, fontWeight: 600, color: "#3a3030", cursor: "pointer" }}>
           <Toggle on={draft.shuffleQuestions} onToggle={() => onDraftChange({ shuffleQuestions: !draft.shuffleQuestions })} />
           Embaralhar perguntas
-        </label>
-        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13.5, fontWeight: 600, color: "#3a3030", cursor: "pointer" }}>
-          <Toggle on={draft.showAnswersAfter} onToggle={() => onDraftChange({ showAnswersAfter: !draft.showAnswersAfter })} />
-          Mostrar gabarito
         </label>
       </div>
 
