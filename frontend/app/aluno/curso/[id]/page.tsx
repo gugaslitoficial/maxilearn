@@ -110,8 +110,8 @@ export default function CursoDetalhePage() {
       <header style={{ background: "#1A1A1A", position: "relative", overflow: "hidden" }}>
         <div style={{ position: "absolute", top: -80, right: -60, width: 380, height: 380, background: "radial-gradient(circle, rgba(204,31,31,0.22), transparent 70%)", borderRadius: "50%" }} />
         <div style={{ position: "relative", maxWidth: 1180, margin: "0 auto", padding: "36px clamp(20px,4vw,40px) 40px", display: "flex", gap: 32, alignItems: "center", flexWrap: "wrap" }}>
-          <div style={{ width: 280, height: 168, flexShrink: 0, borderRadius: 14, background: course.gradient, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 16px 40px rgba(0,0,0,0.35)" }}>
-            <span style={{ fontSize: 56, fontWeight: 800, color: "rgba(255,255,255,0.92)", letterSpacing: "-0.02em" }}>{course.tag}</span>
+          <div style={{ width: 280, height: 168, flexShrink: 0, borderRadius: 14, background: course.gradient, backgroundImage: course.thumbnailUrl ? `url(${course.thumbnailUrl})` : undefined, backgroundSize: "cover", backgroundPosition: "center", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 16px 40px rgba(0,0,0,0.35)" }}>
+            {!course.thumbnailUrl && <span style={{ fontSize: 56, fontWeight: 800, color: "rgba(255,255,255,0.92)", letterSpacing: "-0.02em" }}>{course.tag}</span>}
           </div>
           <div style={{ flex: 1, minWidth: 280 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>

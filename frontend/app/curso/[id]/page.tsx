@@ -138,15 +138,20 @@ export default function CursoPreviewPage() {
               flexShrink: 0,
               borderRadius: 14,
               background: course.gradient,
+              backgroundImage: course.thumbnailUrl ? `url(${course.thumbnailUrl})` : undefined,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               boxShadow: "0 16px 40px rgba(0,0,0,0.35)",
             }}
           >
-            <span style={{ fontSize: 56, fontWeight: 800, color: "rgba(255,255,255,0.92)", letterSpacing: "-0.02em" }}>
-              {course.tag}
-            </span>
+            {!course.thumbnailUrl && (
+              <span style={{ fontSize: 56, fontWeight: 800, color: "rgba(255,255,255,0.92)", letterSpacing: "-0.02em" }}>
+                {course.tag}
+              </span>
+            )}
           </div>
           <div style={{ flex: 1, minWidth: 280 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
