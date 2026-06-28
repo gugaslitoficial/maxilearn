@@ -13,6 +13,7 @@ import { ReportsModule } from './reports/reports.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { CourseQuestionsModule } from './course-questions/course-questions.module';
 import { UploadModule } from './upload/upload.module';
+import { RequestsModule } from './requests/requests.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { UploadModule } from './upload/upload.module';
     NotificationsModule,
     CourseQuestionsModule,
     UploadModule,
+    RequestsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

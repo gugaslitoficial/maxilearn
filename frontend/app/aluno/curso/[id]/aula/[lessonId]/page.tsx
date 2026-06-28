@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useLessonContext, useMarkLessonComplete } from "@/hooks/use-lesson";
 import { useQuizStudent, useSubmitQuizById } from "@/hooks/use-quiz-student";
 import type { SubmitResult, QuizOption, QuizQuestion } from "@/hooks/use-quiz-student";
+import { useSubmitCertificateRequest, useSubmitQuizRetryRequest } from "@/hooks/use-requests";
 import { PlayerSidebar } from "@/components/player/PlayerSidebar";
 import { Toast } from "@/components/ui/Toast";
 import { toUploadUrl } from "@/lib/api";
@@ -59,14 +60,17 @@ export default function PlayerAulaPage() {
   const [shuffledOptions, setShuffledOptions] = useState<Record<string, QuizOption[]>>({});
   const [shuffledQuestions, setShuffledQuestions] = useState<QuizQuestion[]>([]);
 
-  // Certificate modal
-  const [showCertModal, setShowCertModal] = useState(false);
+  // Completion flow state
+  const [certRequestSent, setCertRequestSent] = useState(false);
+  const [retryRequestSent, setRetryRequestSent] = useState(false);
 
   const videoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const videoPlayedRef = useRef(false);
 
   const { derived, isLoading } = useLessonContext(courseId, lessonId);
   const markComplete = useMarkLessonComplete(courseId);
+  const submitCertRequest = useSubmitCertificateRequest();
+  const submitRetryRequest = useSubmitQuizRetryRequest();
 
   const quizId = derived?.currentLesson?.type === "quiz"
     ? (derived.currentLesson.quiz?.id ?? null)
@@ -83,6 +87,8 @@ export default function PlayerAulaPage() {
     setShuffledOptions({});
     setShuffledQuestions([]);
     setSelectedMatIdx(0);
+    setCertRequestSent(false);
+    setRetryRequestSent(false);
     videoPlayedRef.current = false;
     if (videoTimerRef.current) {
       clearTimeout(videoTimerRef.current);
@@ -91,23 +97,15 @@ export default function PlayerAulaPage() {
   }, [lessonId]);
 
   const isLastLesson = derived ? derived.nextLesson === null : false;
-  const hasCertificate = derived
-    ? (derived.course.certificateType !== "none" && derived.course.certificateType !== undefined
-       ? true
-       : derived.course.issueCertificate)
-    : false;
 
   const autoComplete = useCallback(async () => {
     if (!derived || derived.isCompleted) return;
     try {
       await markComplete.mutateAsync(lessonId);
-      if (isLastLesson && hasCertificate) {
-        setShowCertModal(true);
-      }
     } catch {
       // silent — backend may already have it as completed
     }
-  }, [derived, markComplete, lessonId, isLastLesson, hasCertificate]);
+  }, [derived, markComplete, lessonId]);
 
   // Video: 30s auto-complete timer
   function startVideoTimer() {
@@ -383,8 +381,8 @@ export default function PlayerAulaPage() {
             <div style={{ fontSize: 42, fontWeight: 800, color: "#fff" }}>{quizResult.score}%</div>
             <div style={{ fontSize: 17, fontWeight: 800, color: "#fff", marginTop: 4 }}>{quizResult.passed ? "Aprovado!" : "Não aprovado"}</div>
           </div>
-          <div style={{ display: "flex", gap: 12 }}>
-            {nextLesson ? (
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            {nextLesson && (
               <button
                 onClick={() => router.push(`/aluno/curso/${courseId}/aula/${nextLesson.id}`)}
                 type="button"
@@ -393,25 +391,41 @@ export default function PlayerAulaPage() {
                 Próxima aula
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
               </button>
-            ) : (
-              <button
-                onClick={() => router.push(`/aluno/curso/${courseId}`)}
-                type="button"
-                style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontFamily: "inherit", fontSize: 14.5, fontWeight: 800, color: "#fff", background: "#1f8a5b", border: "none", borderRadius: 12, padding: 14, cursor: "pointer" }}
-              >
-                Concluir curso
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
-              </button>
             )}
             {!quizResult.passed && quiz.canAttempt && (quizResult.attemptsRemaining === null || quizResult.attemptsRemaining > 0) && (
               <button
                 onClick={handleQuizRetry}
                 type="button"
-                style={{ display: "inline-flex", alignItems: "center", gap: 8, fontFamily: "inherit", fontSize: 14, fontWeight: 700, color: "#fff", background: "#1a1f35", border: "1px solid #2a3555", borderRadius: 12, padding: "14px 18px", cursor: "pointer" }}
+                style={{ flex: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8, fontFamily: "inherit", fontSize: 14, fontWeight: 700, color: "#fff", background: "#1a1f35", border: "1px solid #2a3555", borderRadius: 12, padding: "14px 18px", cursor: "pointer" }}
               >
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 2v6h6"/><path d="M3 8a9 9 0 1 0 2.6-5.6L3 8"/></svg>
                 Tentar novamente
               </button>
+            )}
+            {!quizResult.passed && !quiz.canAttempt && quizId && (
+              retryRequestSent ? (
+                <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontSize: 13.5, fontWeight: 700, color: "#6b8fd4", background: "rgba(107,143,212,0.1)", border: "1px solid rgba(107,143,212,0.3)", borderRadius: 12, padding: 14 }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                  Solicitação enviada! Aguarde aprovação.
+                </div>
+              ) : (
+                <button
+                  onClick={async () => {
+                    try {
+                      await submitRetryRequest.mutateAsync(quizId);
+                      setRetryRequestSent(true);
+                    } catch {
+                      setToast("Erro ao enviar solicitação. Tente novamente.");
+                    }
+                  }}
+                  disabled={submitRetryRequest.isPending}
+                  type="button"
+                  style={{ flex: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8, fontFamily: "inherit", fontSize: 14, fontWeight: 700, color: "#fff", background: "#2a3a6b", border: "1px solid #3a4a7b", borderRadius: 12, padding: "14px 18px", cursor: "pointer", opacity: submitRetryRequest.isPending ? 0.7 : 1 }}
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 2v6h6"/><path d="M3 8a9 9 0 1 0 2.6-5.6L3 8"/></svg>
+                  {submitRetryRequest.isPending ? "Enviando…" : "Solicitar nova tentativa"}
+                </button>
+              )
             )}
           </div>
           {correctAnswers.length > 0 && (
@@ -461,37 +475,6 @@ export default function PlayerAulaPage() {
         @media (max-width: 1024px) { .player-sidebar-desktop { display: none !important; } .lg-only { display: flex !important; } }
       `}</style>
 
-      {/* Certificate modal */}
-      {showCertModal && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
-          <div style={{ background: "#1a1616", border: "1px solid #2a2424", borderRadius: 20, padding: "40px 36px", maxWidth: 440, width: "100%", textAlign: "center", animation: "ml-cert-in .35s ease" }}>
-            <div style={{ width: 80, height: 80, borderRadius: "50%", background: "linear-gradient(135deg,#1f8a5b,#43b787)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
-              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>
-            </div>
-            <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.06em", textTransform: "uppercase", color: "#43b787", marginBottom: 10 }}>Parabéns!</div>
-            <h2 style={{ fontSize: 22, fontWeight: 800, color: "#fff", letterSpacing: "-0.02em" }}>Curso concluído!</h2>
-            <p style={{ fontSize: 13.5, fontWeight: 600, color: "#8a807e", marginTop: 10, lineHeight: 1.6 }}>
-              Você finalizou <strong style={{ color: "#e6dede" }}>{course.title}</strong>. Seu certificado já está disponível.
-            </p>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 24 }}>
-              <Link
-                href="/aluno/certificados"
-                style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 9, fontFamily: "inherit", fontSize: 15, fontWeight: 800, color: "#fff", textDecoration: "none", background: "#1f8a5b", borderRadius: 12, padding: 14 }}
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>
-                Ver certificado
-              </Link>
-              <button
-                onClick={() => { setShowCertModal(false); router.push(`/aluno/curso/${courseId}`); }}
-                type="button"
-                style={{ fontFamily: "inherit", fontSize: 14, fontWeight: 700, color: "#cfc8c8", background: "transparent", border: "1px solid #332c2c", borderRadius: 12, padding: 13, cursor: "pointer" }}
-              >
-                Voltar ao curso
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Topbar */}
       <header style={{ background: "#1a1616", borderBottom: "1px solid #2a2424", padding: "12px clamp(16px,3vw,28px)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexShrink: 0 }}>
@@ -654,15 +637,82 @@ export default function PlayerAulaPage() {
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
                     Anterior
                   </button>
-                  <button
-                    onClick={() => nextLesson && router.push(`/aluno/curso/${courseId}/aula/${nextLesson.id}`)}
-                    disabled={!nextLesson}
-                    type="button"
-                    style={{ display: "inline-flex", alignItems: "center", gap: 7, fontFamily: "inherit", fontSize: 13.5, fontWeight: 700, color: nextLesson ? "#fff" : "#4a4040", background: "#272121", border: "1px solid #332c2c", borderRadius: 10, padding: "11px 16px", cursor: nextLesson ? "pointer" : "not-allowed", opacity: nextLesson ? 1 : 0.5 }}
-                  >
-                    Próxima
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
-                  </button>
+                  {isLastLesson ? (() => {
+                    const allDone = progressPercent === 100;
+                    const courseHasQuiz = modulesWithStatus.some((m) => m.lessons.some((l) => l.type === "quiz"));
+                    const quizPassed = !courseHasQuiz || (quizResult?.passed === true);
+                    const quizFailedNoAttempts = courseHasQuiz && quizResult !== null && !quizResult.passed && quizResult.attemptsRemaining === 0;
+                    const canRequestCert = allDone && quizPassed && course.issueCertificate;
+                    const missingItems = [
+                      !allDone && `${completedCount}/${totalLessons} aulas concluídas`,
+                      !quizPassed && !quizFailedNoAttempts && "Quiz ainda não aprovado",
+                    ].filter(Boolean) as string[];
+
+                    if (certRequestSent) return (
+                      <div style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 13, fontWeight: 700, color: "#43b787", background: "rgba(31,138,91,0.12)", border: "1px solid rgba(31,138,91,0.3)", borderRadius: 10, padding: "11px 16px" }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                        Solicitação enviada! Aguarde aprovação.
+                      </div>
+                    );
+
+                    if (quizFailedNoAttempts) return (
+                      <div style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 13, fontWeight: 700, color: "#6b8fd4", background: "rgba(107,143,212,0.1)", border: "1px solid rgba(107,143,212,0.2)", borderRadius: 10, padding: "11px 16px" }}>
+                        Solicite nova tentativa acima
+                      </div>
+                    );
+
+                    if (!course.issueCertificate) return (
+                      <button
+                        onClick={() => router.push("/aluno/dashboard")}
+                        type="button"
+                        style={{ display: "inline-flex", alignItems: "center", gap: 7, fontFamily: "inherit", fontSize: 13.5, fontWeight: 700, color: "#fff", background: "#1f8a5b", border: "none", borderRadius: 10, padding: "11px 16px", cursor: "pointer" }}
+                      >
+                        Concluir curso
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                      </button>
+                    );
+
+                    return (
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+                        <button
+                          disabled={!canRequestCert || submitCertRequest.isPending}
+                          onClick={async () => {
+                            if (!canRequestCert) return;
+                            try {
+                              await submitCertRequest.mutateAsync(courseId);
+                              setCertRequestSent(true);
+                              setTimeout(() => router.push("/aluno/dashboard"), 2000);
+                            } catch (e: unknown) {
+                              const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
+                              setToast(msg ?? "Erro ao enviar solicitação.");
+                            }
+                          }}
+                          type="button"
+                          style={{ display: "inline-flex", alignItems: "center", gap: 7, fontFamily: "inherit", fontSize: 13.5, fontWeight: 700, color: canRequestCert ? "#fff" : "#4a4040", background: canRequestCert ? "#1f8a5b" : "#272121", border: `1px solid ${canRequestCert ? "#1f8a5b" : "#332c2c"}`, borderRadius: 10, padding: "11px 16px", cursor: canRequestCert && !submitCertRequest.isPending ? "pointer" : "not-allowed", opacity: submitCertRequest.isPending ? 0.7 : 1 }}
+                        >
+                          {submitCertRequest.isPending ? "Enviando…" : "Concluir curso"}
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                        </button>
+                        {missingItems.length > 0 && (
+                          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2 }}>
+                            {missingItems.map((item) => (
+                              <span key={item} style={{ fontSize: 11.5, fontWeight: 600, color: "#b9842f" }}>⚠ {item}</span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })() : (
+                    <button
+                      onClick={() => nextLesson && router.push(`/aluno/curso/${courseId}/aula/${nextLesson.id}`)}
+                      disabled={!nextLesson}
+                      type="button"
+                      style={{ display: "inline-flex", alignItems: "center", gap: 7, fontFamily: "inherit", fontSize: 13.5, fontWeight: 700, color: nextLesson ? "#fff" : "#4a4040", background: "#272121", border: "1px solid #332c2c", borderRadius: 10, padding: "11px 16px", cursor: nextLesson ? "pointer" : "not-allowed", opacity: nextLesson ? 1 : 0.5 }}
+                    >
+                      Próxima
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                    </button>
+                  )}
                 </div>
               </div>
 

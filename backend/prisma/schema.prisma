@@ -43,6 +43,12 @@ enum QuestionType {
   TRUE_FALSE
 }
 
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 // ─── Models ──────────────────────────────────────────────────────────────────
 
 model Company {
@@ -68,13 +74,15 @@ model Company {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
-  users           User[]
-  courses         Course[]
-  quizzes         Quiz[]
-  certificates    Certificate[]
-  notifications   Notification[]
-  courseQuestions CourseQuestion[]
-  uploads         Upload[]
+  users                User[]
+  courses              Course[]
+  quizzes              Quiz[]
+  certificates         Certificate[]
+  notifications        Notification[]
+  courseQuestions      CourseQuestion[]
+  uploads              Upload[]
+  certificateRequests  CertificateRequest[]
+  quizRetryRequests    QuizRetryRequest[]
 }
 
 model User {
@@ -92,15 +100,21 @@ model User {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  company             Company               @relation(fields: [companyId], references: [id])
-  courses             Course[]              @relation("TeacherCourses")
-  enrollments         Enrollment[]
-  progress            LessonProgress[]
-  quizSubmissions     QuizSubmission[]
-  certificates        Certificate[]
-  notifications       Notification[]
-  courseQuestions     CourseQuestion[]      @relation("QuestionAuthor")
-  questionReplies     CourseQuestionReply[] @relation("ReplyAuthor")
+  company                    Company               @relation(fields: [companyId], references: [id])
+  courses                    Course[]              @relation("TeacherCourses")
+  enrollments                Enrollment[]
+  progress                   LessonProgress[]
+  quizSubmissions            QuizSubmission[]
+  certificates               Certificate[]
+  notifications              Notification[]
+  courseQuestions            CourseQuestion[]      @relation("QuestionAuthor")
+  questionReplies            CourseQuestionReply[] @relation("ReplyAuthor")
+  certRequestsAsStudent      CertificateRequest[]  @relation("CertReqStudent")
+  certRequestsReviewed       CertificateRequest[]  @relation("CertReqReviewer")
+  quizRetryRequestsAsStudent QuizRetryRequest[]    @relation("QuizRetryStudent")
+  quizRetryRequestsReviewed  QuizRetryRequest[]    @relation("QuizRetryReviewer")
+  quizAttemptExtensions      QuizAttemptExtension[] @relation("ExtensionStudent")
+  grantedExtensions          QuizAttemptExtension[] @relation("ExtensionGranter")
 
   @@index([companyId])
 }
@@ -126,13 +140,15 @@ model Course {
   createdAt                DateTime     @default(now())
   updatedAt                DateTime     @updatedAt
 
-  company         Company          @relation(fields: [companyId], references: [id])
-  teacher         User             @relation("TeacherCourses", fields: [teacherId], references: [id])
-  modules         Module[]
-  enrollments     Enrollment[]
-  quizzes         Quiz[]
-  certificates    Certificate[]
-  courseQuestions CourseQuestion[]
+  company             Company              @relation(fields: [companyId], references: [id])
+  teacher             User                 @relation("TeacherCourses", fields: [teacherId], references: [id])
+  modules             Module[]
+  enrollments         Enrollment[]
+  quizzes             Quiz[]
+  certificates        Certificate[]
+  courseQuestions     CourseQuestion[]
+  certificateRequests CertificateRequest[]
+  quizRetryRequests   QuizRetryRequest[]
 
   @@index([companyId])
   @@index([teacherId])
@@ -218,11 +234,13 @@ model Quiz {
   createdAt        DateTime   @default(now())
   updatedAt        DateTime   @updatedAt
 
-  course      Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  company     Company          @relation(fields: [companyId], references: [id])
-  lessons     Lesson[]         @relation("LessonQuiz")
-  questions   Question[]
-  submissions QuizSubmission[]
+  course           Course                 @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  company          Company                @relation(fields: [companyId], references: [id])
+  lessons          Lesson[]               @relation("LessonQuiz")
+  questions        Question[]
+  submissions      QuizSubmission[]
+  retryRequests    QuizRetryRequest[]
+  attemptExtensions QuizAttemptExtension[]
 
   @@index([courseId])
   @@index([companyId])
@@ -347,4 +365,60 @@ model Upload {
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([companyId])
+}
+
+model CertificateRequest {
+  id           String        @id @default(cuid())
+  studentId    String
+  courseId     String
+  companyId    String
+  status       RequestStatus @default(PENDING)
+  requestedAt  DateTime      @default(now())
+  reviewedAt   DateTime?
+  reviewedById String?
+
+  student    User    @relation("CertReqStudent", fields: [studentId], references: [id])
+  course     Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  company    Company @relation(fields: [companyId], references: [id])
+  reviewedBy User?   @relation("CertReqReviewer", fields: [reviewedById], references: [id])
+
+  @@unique([studentId, courseId])
+  @@index([companyId])
+  @@index([courseId])
+}
+
+model QuizRetryRequest {
+  id           String        @id @default(cuid())
+  studentId    String
+  quizId       String
+  courseId     String
+  companyId    String
+  status       RequestStatus @default(PENDING)
+  requestedAt  DateTime      @default(now())
+  reviewedAt   DateTime?
+  reviewedById String?
+
+  student    User    @relation("QuizRetryStudent", fields: [studentId], references: [id])
+  quiz       Quiz    @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  course     Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  company    Company @relation(fields: [companyId], references: [id])
+  reviewedBy User?   @relation("QuizRetryReviewer", fields: [reviewedById], references: [id])
+
+  @@unique([studentId, quizId])
+  @@index([companyId])
+}
+
+model QuizAttemptExtension {
+  id            String   @id @default(cuid())
+  studentId     String
+  quizId        String
+  extraAttempts Int      @default(1)
+  grantedAt     DateTime @default(now())
+  grantedById   String
+
+  student   User @relation("ExtensionStudent", fields: [studentId], references: [id])
+  quiz      Quiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  grantedBy User @relation("ExtensionGranter", fields: [grantedById], references: [id])
+
+  @@unique([studentId, quizId])
 }

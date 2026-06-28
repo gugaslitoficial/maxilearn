@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { LayoutDashboard, BookOpen, Users, ClipboardList } from "lucide-react";
+import { LayoutDashboard, BookOpen, Users, ClipboardList, Inbox } from "lucide-react";
 import { AppShell } from "@/components/shared/AppShell";
 import type { NavItem } from "@/components/shared/AppShell";
 import { useAuth, deriveAppUser, deriveRoleBadge } from "@/lib/auth-context";
@@ -39,6 +39,7 @@ export function ProfessorShell({ children }: { children: ReactNode }) {
       badge: pending?.total ?? 0,
     },
     { key: "quizzes", label: "Quizzes", href: "/professor/quizzes", Icon: ClipboardList },
+    { key: "solicitacoes", label: "Solicitações", href: "/professor/solicitacoes", Icon: Inbox },
   ];
 
   return (

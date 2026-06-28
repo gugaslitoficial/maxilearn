@@ -15,7 +15,6 @@ import { UpdateQuestionDto } from './dto/update-question.dto';
 import { ReorderQuestionsDto } from './dto/reorder-questions.dto';
 import { SubmitQuizDto } from './dto/submit-quiz.dto';
 import { ListQuizzesDto } from './dto/list-quizzes.dto';
-import { CertificatesService } from '../certificates/certificates.service';
 
 type OptionJson = { id: string; text: string; isCorrect: boolean };
 
@@ -37,10 +36,7 @@ const QUIZ_LIST_SELECT = {
 
 @Injectable()
 export class QuizzesService {
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly certificates: CertificatesService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   // ─── Guards ────────────────────────────────────────────────────────────────
 
@@ -69,6 +65,14 @@ export class QuizzesService {
       throw new ForbiddenException('Active enrollment required to access this quiz');
     }
     return enrollment;
+  }
+
+  private async getEffectiveMaxAttempts(quizId: string, maxAttempts: number | null, studentId: string): Promise<number | null> {
+    if (maxAttempts === null) return null;
+    const extension = await this.prisma.quizAttemptExtension.findUnique({
+      where: { studentId_quizId: { studentId, quizId } },
+    });
+    return maxAttempts + (extension?.extraAttempts ?? 0);
   }
 
   // ─── Helpers ───────────────────────────────────────────────────────────────
@@ -246,12 +250,13 @@ export class QuizzesService {
     });
 
     if (user.role === Role.STUDENT) {
-      const canAttempt = full.maxAttempts === null || attemptCount < full.maxAttempts;
+      const effectiveMax = await this.getEffectiveMaxAttempts(quizId, full.maxAttempts, user.userId);
+      const canAttempt = effectiveMax === null || attemptCount < effectiveMax;
       return {
         ...base,
         attemptCount,
         canAttempt,
-        attemptsRemaining: full.maxAttempts === null ? null : full.maxAttempts - attemptCount,
+        attemptsRemaining: effectiveMax === null ? null : effectiveMax - attemptCount,
       };
     }
 
@@ -455,7 +460,6 @@ export class QuizzesService {
         course: {
           select: {
             id: true,
-            issueCertificate: true,
             title: true,
             teacher: { select: { name: true } },
             company: { select: { id: true } },
@@ -474,10 +478,13 @@ export class QuizzesService {
       where: { quizId, studentId: user.userId },
     });
 
-    if (user.role === Role.STUDENT && quiz.maxAttempts !== null && previousAttempts >= quiz.maxAttempts) {
-      throw new BadRequestException(
-        `Maximum number of attempts (${quiz.maxAttempts}) reached for this quiz`,
-      );
+    if (user.role === Role.STUDENT && quiz.maxAttempts !== null) {
+      const effectiveMax = await this.getEffectiveMaxAttempts(quizId, quiz.maxAttempts, user.userId);
+      if (effectiveMax !== null && previousAttempts >= effectiveMax) {
+        throw new BadRequestException(
+          `Maximum number of attempts (${effectiveMax}) reached for this quiz`,
+        );
+      }
     }
 
     const answerMap = new Map(dto.answers.map((a) => [a.questionId, a.selectedOptionId]));
@@ -528,9 +535,9 @@ export class QuizzesService {
       : 0;
     const passed = score >= quiz.minPassingScore;
     const attemptNumber = previousAttempts + 1;
-    const attemptsRemaining = quiz.maxAttempts === null
-      ? null
-      : quiz.maxAttempts - attemptNumber;
+
+    const effectiveMax = await this.getEffectiveMaxAttempts(quizId, quiz.maxAttempts, user.userId);
+    const attemptsRemaining = effectiveMax === null ? null : effectiveMax - attemptNumber;
 
     const answers = dto.answers.map((a) => ({
       questionId: a.questionId,
@@ -549,33 +556,14 @@ export class QuizzesService {
       },
     });
 
-    let certificateIssued = false;
-    if (passed && quiz.course.issueCertificate) {
-      const student = await this.prisma.user.findUnique({
-        where: { id: user.userId },
-        select: { name: true },
-      });
-
-      certificateIssued = await this.certificates.createIfNotExists({
-        studentId: user.userId,
-        courseId: quiz.courseId,
-        companyId: user.companyId,
-        studentName: student?.name ?? '',
-        courseName: quiz.course.title,
-        teacherName: quiz.course.teacher.name,
-      });
-    }
-
-    const result: Record<string, unknown> = {
+    return {
       submissionId: submission.id,
       score,
       passed,
       attemptNumber,
       attemptsRemaining,
-      certificateIssued,
+      answers: answerDetails,
     };
-
-    return result;
   }
 
   // ─── getSubmissions ────────────────────────────────────────────────────────

@@ -50,7 +50,7 @@ export interface SubmitResult {
   passed: boolean;
   attemptNumber: number;
   attemptsRemaining: number | null;
-  certificateIssued: boolean;
+  certificateIssued?: boolean;
   answers?: AnswerDetail[];
 }
 
