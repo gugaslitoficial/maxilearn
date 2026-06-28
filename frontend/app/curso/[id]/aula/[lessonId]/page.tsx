@@ -11,7 +11,7 @@ import type { SubmitResult, QuizOption, QuizQuestion } from "@/hooks/use-quiz-st
 import { useCourseQuestions, useCreateCourseQuestion, useCreateReply, useDeleteCourseQuestion } from "@/hooks/use-course-questions";
 import { PlayerSidebar } from "@/components/player/PlayerSidebar";
 import { Toast } from "@/components/ui/Toast";
-import { api } from "@/lib/api";
+import { api, toUploadUrl } from "@/lib/api";
 
 const PRIMARY = "var(--color-primary)";
 
@@ -586,10 +586,11 @@ export default function PreviewPlayerPage() {
                   <p style={{ fontSize: 13.5, fontWeight: 600, color: "#8a807e", fontStyle: "italic" }}>Nenhum material adicionado.</p>
                 </div>
               );
-              const url = mat.url ?? "";
-              const isPdf = mat.type === "pdf" || /\.pdf$/i.test(url);
-              const isImage = /\.(jpe?g|png|gif|webp|svg)$/i.test(url);
-              const isDoc = mat.type === "doc" || mat.type === "ppt" || /\.(docx?|pptx?|xlsx?)$/i.test(url);
+              const rawUrl = mat.url ?? "";
+              const url = toUploadUrl(rawUrl) ?? rawUrl;
+              const isPdf = mat.type === "pdf" || /\.pdf$/i.test(rawUrl);
+              const isImage = /\.(jpe?g|png|gif|webp|svg)$/i.test(rawUrl);
+              const isDoc = mat.type === "doc" || mat.type === "ppt" || /\.(docx?|pptx?|xlsx?)$/i.test(rawUrl);
               const isLink = mat.type === "link" || (!isPdf && !isImage && !isDoc);
               const iframeSrc = isDoc
                 ? `https://docs.google.com/gview?url=${encodeURIComponent(url)}&embedded=true`
@@ -743,7 +744,7 @@ export default function PreviewPlayerPage() {
                       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                         {lessonMaterials.map((mat, i) => (
                           course.allowDownload ? (
-                            <a key={mat.id ?? i} href={mat.url || "#"} target="_blank" rel="noreferrer" style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", background: "#221d1d", border: "1px solid #2a2424", borderRadius: 10, textDecoration: "none" }}>
+                            <a key={mat.id ?? i} href={toUploadUrl(mat.url) ?? (mat.url || "#")} target="_blank" rel="noreferrer" style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", background: "#221d1d", border: "1px solid #2a2424", borderRadius: 10, textDecoration: "none" }}>
                               <span style={{ fontSize: 10, fontWeight: 900, color: "#e6dede", background: "#3a3030", padding: "3px 8px", borderRadius: 5, flexShrink: 0 }}>{(mat.type ?? "link").toUpperCase()}</span>
                               <span style={{ flex: 1, fontSize: 14, fontWeight: 600, color: "#e6dede", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{mat.title || "Material sem nome"}</span>
                               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8a807e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
